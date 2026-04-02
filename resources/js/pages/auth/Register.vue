@@ -16,6 +16,7 @@ defineOptions({
         description: 'Enter your details below to create your account',
     },
 });
+
 </script>
 
 <template>
@@ -29,18 +30,18 @@ defineOptions({
     >
         <div class="grid gap-6">
             <div class="grid gap-2">
-                <Label for="name">Name</Label>
+                <Label for="full_name">Full Name</Label>
                 <Input
-                    id="name"
+                    id="full_name"
                     type="text"
                     required
                     autofocus
                     :tabindex="1"
                     autocomplete="name"
-                    name="name"
+                    name="full_name"
                     placeholder="Full name"
                 />
-                <InputError :message="errors.name" />
+                <InputError :message="errors.full_name" />
             </div>
 
             <div class="grid gap-2">
@@ -58,11 +59,52 @@ defineOptions({
             </div>
 
             <div class="grid gap-2">
+                <Label for="phone_number">Phone Number</Label>
+                <Input
+                    id="phone_number"
+                    type="text"
+                    required
+                    :tabindex="3"
+                    autocomplete="tel"
+                    name="phone_number"
+                    placeholder="e.g., 012-3456789"
+                />
+                <InputError :message="errors.phone_number" />
+            </div>
+
+            <div class="grid gap-2">
+                <Label for="address">Home Address</Label>
+                <Input
+                    id="address"
+                    type="text"
+                    required
+                    :tabindex="4"
+                    autocomplete="street-address"
+                    name="address"
+                    placeholder="123 Workshop Street"
+                />
+                <InputError :message="errors.address" />
+            </div>
+
+            <div class="grid gap-2">
+                <Label for="position">Assigned Position</Label>
+                <Input
+                    id="position"
+                    type="text"
+                    required
+                    :tabindex="5"
+                    name="position"
+                    placeholder="e.g., Mechanic, Admin, Service Advisor"
+                />
+                <InputError :message="errors.position" />
+            </div>
+
+            <div class="grid gap-2">
                 <Label for="password">Password</Label>
                 <PasswordInput
                     id="password"
                     required
-                    :tabindex="3"
+                    :tabindex="6"
                     autocomplete="new-password"
                     name="password"
                     placeholder="Password"
@@ -75,7 +117,7 @@ defineOptions({
                 <PasswordInput
                     id="password_confirmation"
                     required
-                    :tabindex="4"
+                    :tabindex="7"
                     autocomplete="new-password"
                     name="password_confirmation"
                     placeholder="Confirm password"
@@ -86,7 +128,7 @@ defineOptions({
             <Button
                 type="submit"
                 class="mt-2 w-full"
-                tabindex="5"
+                tabindex="8"
                 :disabled="processing"
                 data-test="register-user-button"
             >
@@ -100,7 +142,7 @@ defineOptions({
             <TextLink
                 :href="login()"
                 class="underline underline-offset-4"
-                :tabindex="6"
+                :tabindex="9"
                 >Log in</TextLink
             >
         </div>

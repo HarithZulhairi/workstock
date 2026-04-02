@@ -12,7 +12,11 @@ return new class extends Migration
             $table->id('automotive_parts_id'); 
             $table->string('part_serial_number')->unique();
             $table->string('name');
-            $table->string('part_picture')->nullable(); 
+            $table->string('brand')->nullable();
+            $table->string('warranty')->nullable(); 
+            $table->string('dimensions')->nullable(); 
+            $table->tinyInteger('condition')->nullable(); 
+            $table->json('part_images')->nullable(); 
             $table->text('part_description')->nullable();
             $table->unsignedBigInteger('category_id'); 
             $table->decimal('price', 10, 2); 

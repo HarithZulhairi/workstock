@@ -3,7 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Categories; 
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -13,11 +14,19 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // Define your categories
+        $categories = [
+            'Engine Components',
+            'Brakes & Suspension',
+            'Fluids & Lubricants',
+            'Tools & Accessories',
+        ];
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // Loop through and create each one
+        foreach ($categories as $category) {
+            Categories::create([
+                'name' => $category,
+            ]);
+        }
     }
 }

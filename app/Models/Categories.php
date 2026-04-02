@@ -3,18 +3,20 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Category extends Model
-{
-    protected $primaryKey = 'category_id'; // [cite: 60]
+#[Fillable([
+    'name', 
+    'description'
+])]
 
-    protected $fillable = [
-        'name', 'description'
-    ];
+class Categories extends Model
+{
+    protected $primaryKey = 'category_id';
 
     public function automotiveParts(): HasMany
     {
-        return $this->hasMany(AutomotivePart::class, 'category_id', 'category_id');
+        return $this->hasMany(AutomotiveParts::class, 'category_id', 'category_id');
     }
 }

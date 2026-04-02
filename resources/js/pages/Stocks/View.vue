@@ -1,0 +1,215 @@
+<script lang="ts" setup>
+// Import ref from vue to manage our active image state
+
+import { Head, Link } from '@inertiajs/vue3';
+import { 
+    ArrowLeft, 
+    PackageOpen, 
+    ShieldCheck, 
+    Hash, 
+    FolderTree, 
+    Eye, 
+    Info,
+    Tag,
+    Shield,
+    Ruler,
+    Star
+} from 'lucide-vue-next';
+
+import { ref } from 'vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+
+import { displayStock } from '@/routes';
+
+defineProps({
+    part: {
+        type: Object,
+        required: true,
+    }
+});
+
+const activeImageIndex = ref(0);
+
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'Display Stock', href: displayStock() },
+            { title: 'View Part', href: '#' },
+        ],
+    },
+});
+</script>
+
+<template>
+    <Head :title="part.name" />
+
+    <div class="my-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <Button variant="ghost" class="text-gray-500 hover:text-gray-900 -ml-4" as-child>
+            <Link :href="displayStock()">
+                <ArrowLeft class="w-4 h-4 mr-2" />
+                Back to Inventory
+            </Link>
+        </Button>
+    </div>
+
+    <div class="pb-12 px-4">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white overflow-hidden shadow-sm ring-1 ring-gray-900/5 sm:rounded-2xl p-6 md:p-10">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                    
+                    <div class="lg:col-span-5 flex flex-col gap-4">
+                        
+                        <div class="aspect-square bg-gray-50 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative shadow-inner">
+                            <img 
+                                v-if="part.part_images && part.part_images.length > 0" 
+                                :src="`/storage/${part.part_images[activeImageIndex]}`" 
+                                :alt="part.name" 
+                                class="object-contain w-full h-full p-4 transition-opacity duration-300"
+                            />
+                            <div v-else class="flex flex-col items-center justify-center text-gray-400">
+                                <PackageOpen class="w-20 h-20 mb-4 opacity-50" />
+                                <span class="text-sm font-medium">No Image Provided</span>
+                            </div>
+                        </div>
+
+                        <div v-if="part.part_images && part.part_images.length > 1" class="flex gap-3 justify-center mt-2">
+                            <button
+                                v-for="(img, index) in part.part_images"
+                                :key="index"
+                                @click="activeImageIndex = index"
+                                class="w-16 h-16 rounded-lg overflow-hidden border-2 transition-all duration-200 focus:outline-none"
+                                :class="activeImageIndex === index ? 'border-primary ring-2 ring-primary/20' : 'border-transparent opacity-60 hover:opacity-100 hover:border-gray-200'"
+                            >
+                                <img :src="`/storage/${img}`" class="object-cover w-full h-full" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-7 flex flex-col">
+                        
+                        <div class="flex items-start justify-between gap-4">
+                            <h1 class="text-3xl font-bold text-gray-900 leading-tight">
+                                {{ part.name }}
+                            </h1>
+                        </div>
+
+                        <div class="mt-3 flex items-center gap-2">
+                            <Badge :variant="part.is_visible_to_public ? 'default' : 'secondary'">
+                                <Eye v-if="part.is_visible_to_public" class="w-3 h-3 mr-1" />
+                                {{ part.is_visible_to_public ? 'Published to Catalog' : 'Hidden internally' }}
+                            </Badge>
+                        </div>
+
+                        <div class="mt-6 bg-gray-50 border border-gray-100 rounded-xl p-6 flex flex-col gap-1">
+                            <span class="text-sm text-gray-500 font-medium">Selling Price</span>
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-2xl font-bold text-primary">RM</span>
+                                <span class="text-4xl font-extrabold text-primary tracking-tight">
+                                    {{ Number(part.price).toFixed(2) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
+                            
+                            <div class="flex items-start gap-3">
+                                <div class="p-2 bg-gray-50 rounded-lg text-gray-500">
+                                    <ShieldCheck class="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500">Availability</p>
+                                    <div class="flex items-center gap-2 mt-0.5">
+                                        <div class="w-2 h-2 rounded-full" :class="part.stock_quantity > 0 ? 'bg-emerald-500' : 'bg-red-500'"></div>
+                                        <p class="font-semibold text-gray-900">
+                                            {{ part.stock_quantity > 0 ? `${part.stock_quantity} Units in Stock` : 'Out of Stock' }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-3">
+                                <div class="p-2 bg-gray-50 rounded-lg text-gray-500">
+                                    <Hash class="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500">Serial Number</p>
+                                    <p class="font-semibold text-gray-900 mt-0.5 uppercase">{{ part.part_serial_number }}</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-3">
+                                <div class="p-2 bg-gray-50 rounded-lg text-gray-500">
+                                    <FolderTree class="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500">Category</p>
+                                    <p class="font-semibold text-gray-900 mt-0.5">{{ part.category?.name }}</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-3" v-if="part.brand">
+                                <div class="p-2 bg-gray-50 rounded-lg text-gray-500">
+                                    <Tag class="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500">Brand</p>
+                                    <p class="font-semibold text-gray-900 mt-0.5 uppercase">{{ part.brand }}</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-3" v-if="part.warranty">
+                                <div class="p-2 bg-gray-50 rounded-lg text-gray-500">
+                                    <Shield class="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500">Warranty</p>
+                                    <p class="font-semibold text-gray-900 mt-0.5">{{ part.warranty }}</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-3" v-if="part.dimensions">
+                                <div class="p-2 bg-gray-50 rounded-lg text-gray-500">
+                                    <Ruler class="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500">Dimensions</p>
+                                    <p class="font-semibold text-gray-900 mt-0.5">{{ part.dimensions }}</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-3" v-if="part.condition">
+                                <div class="p-2 bg-gray-50 rounded-lg text-gray-500">
+                                    <Star class="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500">Condition</p>
+                                    <p class="font-semibold text-gray-900 mt-0.5">{{ part.condition }} / 10</p>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <hr class="my-8 border-gray-100" />
+
+                        <div class="flex flex-col gap-3">
+                            <div class="flex items-center gap-2 text-gray-900 font-semibold text-lg">
+                                <Info class="w-5 h-5 text-gray-500" />
+                                Product Description
+                            </div>
+                            <div class="bg-gray-50/50 p-5 rounded-xl border border-gray-100">
+                                <p v-if="part.part_description" class="text-gray-600 leading-relaxed whitespace-pre-line text-sm">
+                                    {{ part.part_description }}
+                                </p>
+                                <p v-else class="text-gray-400 italic text-sm">
+                                    No description provided for this automotive part.
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
