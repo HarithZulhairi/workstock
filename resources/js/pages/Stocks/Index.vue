@@ -1,13 +1,25 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'; // <-- Import Vue reactivity
-import { Head, Link, router } from '@inertiajs/vue3';
-// Make sure lodash is installed. Laravel/Inertia usually includes it by default.
+import { ref, watch } from 'vue';
+import { toast } from 'vue-sonner';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import debounce from 'lodash/debounce'; 
-
-import { Warehouse, Pencil, Trash, PackageOpen, Eye, EyeOff, Search, FilterX } from 'lucide-vue-next';
+import { Warehouse, Pencil, Trash, PackageOpen, Eye, EyeOff, Search, FilterX, Plus } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge'; 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input'; // <-- Import Input
+
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -15,6 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'; // <-- Import Select components
+
+import { Toaster } from '@/components/ui/sonner';
 
 import {
   Table,
@@ -25,7 +39,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-import { createStock, displayStock, viewStock } from '@/routes';
+import { createStock, displayStock, viewStock, addStock, destroyStock, editStock } from '@/routes';
 
 import {
   Pagination,
@@ -35,6 +49,25 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination'
+
+import {
+  NumberField,
+  NumberFieldContent,
+  NumberFieldDecrement,
+  NumberFieldIncrement,
+  NumberFieldInput,
+} from '@/components/ui/number-field'
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 const props = defineProps({
     parts: { type: Object, required: true },
@@ -75,14 +108,58 @@ const clearFilters = () => {
 };
 
 const handlePageChange = (pageNumber: number) => {
-    // Merge current filters with the page number request
     router.get(displayStock(), { ...filterForm.value, page: pageNumber }, {
         preserveState: true,
         preserveScroll: true,
     });
 };
 
-defineOptions({ layout: { breadcrumbs: [ { title: 'Display Stock', href: displayStock() } ] } });
+
+const submitRowStock = (partId: number, baseStockAdd: number | string, variationsData: any[]) => {
+    const baseAdd = Number(baseStockAdd) || 0;
+    
+    const formattedVariations = (variationsData || []).map(v => ({
+        variation_id: v.variation_id,
+        add_quantity: Number(v.temp_add_quantity) || 0
+    }));
+
+    router.post(addStock(partId), {
+        base_stock_add: baseAdd,
+        variations: formattedVariations
+    }, {
+        onSuccess: () => {
+            toast.success(' Stock added successfully!');
+        },
+        onError: () => {
+            toast.error('Failed to add stock. Please check your inputs.');
+        },
+        preserveScroll: true,
+    });
+};
+
+const deletePart = (id: number) => {
+    router.post(destroyStock(id), { },{
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.success('Part deleted successfully!');
+        },
+        onError: () => {
+            toast.error('Failed to delete part.');
+        }
+    });
+};
+
+defineOptions({ 
+    layout: { breadcrumbs: 
+        [ 
+            { 
+                title: 'Display Stock', 
+                href: displayStock() 
+            } 
+        ] 
+    } 
+});
+
 </script>
 
 <template>
@@ -103,6 +180,19 @@ defineOptions({ layout: { breadcrumbs: [ { title: 'Display Stock', href: display
         <Link :href="createStock()">Add New Part</Link>
       </Button>
     </div>
+
+    <Toaster 
+        class="px-12"
+        position="top-right" 
+        :toastOptions="{
+            classes: {
+                toast: 'group flex w-full items-center p-4 rounded-xl shadow-lg border',
+                success: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+                error: 'bg-red-50 border-red-200 text-red-900',
+                info: 'bg-blue-50 border-blue-200 text-blue-900',
+            }
+        }" 
+    />
 
     <div class="pb-12 pt-4 px-4">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -224,17 +314,100 @@ defineOptions({ layout: { breadcrumbs: [ { title: 'Display Stock', href: display
 
                       <TableCell class="text-right pr-6">
                         <div class="flex items-center justify-end gap-2">
+                            <Dialog>
+                                <DialogTrigger as-child>
+                                    <Button variant="ghost" size="icon" title="Add Availability" class="h-8 w-8 text-gray-500 hover:text-green-600 hover:bg-green-50 cursor-pointer">
+                                        <Plus class="w-4 h-4" />
+                                    </Button>
+                                </DialogTrigger>
+                                
+                                <DialogContent class="sm:max-w-[425px] text-left">
+                                    <form @submit.prevent="submitRowStock(part.automotive_parts_id, part.temp_base_add, part.variations)">
+                                        <DialogHeader>
+                                            <DialogTitle>Add Availability</DialogTitle>
+                                            <DialogDescription>
+                                                Add the amount of stock received for this part.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        
+                                        <div class="grid gap-6 py-4">
+                                            
+                                            <div class="grid gap-2 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                                                <NumberField id="base-stock-add" v-model="part.temp_base_add" :default-value="0" :min="0">
+                                                    <Label for="base-stock-add" class="font-semibold text-gray-900">{{ part.name }}</Label>
+                                                    <span class="text-xs text-gray-500 block mb-2">Current Base Stock: {{ part.stock_quantity }}</span>
+                                                    <NumberFieldContent>
+                                                        <NumberFieldDecrement />
+                                                        <NumberFieldInput class="text-center bg-white" />
+                                                        <NumberFieldIncrement />
+                                                    </NumberFieldContent>
+                                                </NumberField>
+                                            </div>
+
+                                            <div v-if="part.variations && part.variations.length > 0" class="grid gap-3">
+                                                <Label class="font-semibold text-gray-900 border-b pb-2">Variations Stock</Label>
+                                                
+                                                <div v-for="variation in part.variations" :key="variation.variation_id" class="flex items-center justify-between gap-4 py-2 border-b border-gray-50 last:border-0">
+                                                    <div class="flex flex-col text-left">
+                                                        <span class="font-medium text-gray-700">{{ variation.name }}</span>
+                                                        <span class="text-xs text-gray-500">Current: {{ variation.stock_quantity }}</span>
+                                                    </div>
+                                                    <div class="flex items-center gap-2 w-32">
+                                                        <span class="text-gray-400 font-bold">+</span>
+                                                        
+                                                        <NumberField v-model="variation.temp_add_quantity" :default-value="0" :min="0" class="w-full">
+                                                            <NumberFieldContent>
+                                                                <NumberFieldDecrement />
+                                                                <NumberFieldInput class="text-center bg-white" />
+                                                                <NumberFieldIncrement />
+                                                            </NumberFieldContent>
+                                                        </NumberField>
+
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                        
+                                        <DialogFooter>
+                                            <DialogClose as-child>
+                                                <Button class="cursor-pointer" type="button" variant="outline">Cancel</Button>
+                                            </DialogClose>
+                                            <DialogClose as-child>
+                                                <Button class="cursor-pointer" type="submit" >
+                                                    Save changes
+                                                </Button>
+                                            </DialogClose>
+                                        </DialogFooter>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
                             <Button variant="ghost" size="icon" title="View Part" class="h-8 w-8 text-gray-500 hover:text-blue-600 hover:bg-blue-50" as-child>
                                 <Link :href="viewStock(part.automotive_parts_id)">
                                     <Eye class="w-4 h-4" />
                                 </Link>
                             </Button>
                             <Button variant="ghost" size="icon" title="Edit Part" class="h-8 w-8 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50">
-                                <Pencil class="w-4 h-4" />
+                                <Link :href="editStock(part.automotive_parts_id)">
+                                    <Pencil class="w-4 h-4" />
+                                </Link>
                             </Button>
-                            <Button variant="ghost" size="icon" title="Delete Part" class="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50">
-                                <Trash class="w-4 h-4" />
-                            </Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger as-child>
+                                    <Button variant="ghost" size="icon" title="Delete Part" class="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50 cursor-pointer" >
+                                        <Trash class="w-4 h-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure you want to delete {{ part.name }}?</AlertDialogTitle>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel class="cursor-pointer" >Cancel</AlertDialogCancel>
+                                        <AlertDialogAction class="cursor-pointer" @click="deletePart(part.automotive_parts_id)">Yes</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>

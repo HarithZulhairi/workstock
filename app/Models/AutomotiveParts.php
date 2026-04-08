@@ -51,4 +51,9 @@ class AutomotiveParts extends Model
                     ->withPivot('job_order_parts_id', 'quantity_used', 'subtotal')
                     ->withTimestamps();
     }
+
+    public function variations()
+    {
+        return $this->hasMany(PartVariation::class, 'automotive_parts_id', 'automotive_parts_id');
+    }
 }
