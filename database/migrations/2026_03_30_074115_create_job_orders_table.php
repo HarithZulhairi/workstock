@@ -12,7 +12,10 @@ return new class extends Migration
             $table->id('job_orders_id'); 
             $table->string('customer_name'); 
             $table->string('customer_phone_num'); 
-            $table->string('vehicle_plate'); 
+            $table->string('vehicle_plate');
+            $table->string('vehicle_brand');
+            $table->string('vehicle_model');
+            $table->string('vehicle_picture')->nullable();
             $table->text('reported_issue'); 
             $table->string('status')->default('Pending'); 
             $table->decimal('total_cost', 10, 2)->default(0.00);

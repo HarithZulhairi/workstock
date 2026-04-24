@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { PackagePlus, Plus, Trash, ImagePlus } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
 
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,8 @@ import {
 
 import { Textarea } from '@/components/ui/textarea';
 
+import { Switch } from '@/components/ui/switch';
+
 import { createStock, displayStock, storeStock } from '@/routes';
 
 import {
@@ -35,6 +37,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -48,6 +51,14 @@ interface Variation {
     stock_quantity: number;
 }
 
+// Alert dialog state
+const showErrorAlert = ref(false);
+const errorAlertMessage = ref('');
+const partImagePreviews = ref<string[]>([]);
+
+// Separate ref for checkbox to work with v-model
+const isVisibleToPublic = ref(true);
+
 const form = useForm({
     name: '',
     part_serial_number: '',
@@ -60,8 +71,14 @@ const form = useForm({
     condition: '', 
     part_images: [] as File[], 
     part_description: '',
-    is_visible_to_public: true,
+    is_visible_to_public: isVisibleToPublic.value,
     variations: [] as Variation[],
+});
+
+// Watch for checkbox changes and sync with form
+watch(isVisibleToPublic, (newVal) => {
+    console.log('Checkbox changed to:', newVal, 'type:', typeof newVal);
+    form.is_visible_to_public = newVal;
 });
 
 // Logic to handle adding and removing dynamic variation rows
@@ -84,13 +101,43 @@ const handleImageUpload = (event: Event) => {
         const filesArray = Array.from(target.files);
         
         if (filesArray.length > 3) {
-            alert("You can only upload a maximum of 3 images.");
+            errorAlertMessage.value = "You can only upload a maximum of 3 images.";
+            showErrorAlert.value = true;
             target.value = ''; // Reset input
             form.part_images = [];
+            partImagePreviews.value = []; // Reset previews
             return;
         }
         
+        // Check each file size (2MB limit)
+        for (let i = 0; i < filesArray.length; i++) {
+            if (filesArray[i].size > 2 * 1024 * 1024) {
+                errorAlertMessage.value = `Image "${filesArray[i].name}" is too large. Maximum size is 2MB per image.`;
+                showErrorAlert.value = true;
+                target.value = ''; // Reset input
+                form.part_images = [];
+                partImagePreviews.value = []; // Reset previews
+                return;
+            }
+        }
+        
         form.part_images = filesArray;
+
+        // Generate preview URLs
+        partImagePreviews.value = [];
+        filesArray.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (e.target?.result) {
+                    partImagePreviews.value.push(e.target.result as string);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    } else {
+        // If the user cancels the file dialog
+        form.part_images = [];
+        partImagePreviews.value = [];
     }
 };
 
@@ -101,7 +148,8 @@ const handleVariationImageUpload = (event: Event, index: number) => {
         
         // Check file size (2MB) - existing validation on server too
         if (file.size > 2 * 1024 * 1024) {
-            alert(`This picture is too large. The maximum size is 2MB.`);
+            errorAlertMessage.value = `This picture is too large. The maximum size is 2MB.`;
+            showErrorAlert.value = true;
             target.value = ''; // Reset input
             form.variations[index].picture = null;
             form.variations[index].previewUrl = null;
@@ -152,7 +200,11 @@ const conditionColor = computed(() => {
 });
 
 const submit = () => {
-    form.post(storeStock());
+    form.post(storeStock(), {
+        onSuccess: () => {
+            console.log('Part created successfully');
+        }
+    });
 };
 
 defineOptions({
@@ -377,8 +429,18 @@ defineOptions({
                       class="cursor-pointer file:text-primary file:font-semibold" 
                     />
                     <InputError :message="form.errors.part_images" class="mt-2" />
-                    <div v-if="form.part_images.length > 0" class="mt-2 text-sm text-gray-500">
-                        Selected {{ form.part_images.length }} image(s).
+
+                    <div v-if="partImagePreviews.length > 0" class="mt-3">
+                        <p class="text-sm text-gray-500 mb-2">Selected {{ partImagePreviews.length }} image(s) for upload:</p>
+                        <div class="flex gap-2 flex-wrap">
+                            <img 
+                                v-for="(preview, idx) in partImagePreviews" 
+                                :key="idx" 
+                                :src="preview" 
+                                class="w-20 h-20 object-cover rounded-md border border-gray-200 shadow-sm" 
+                                :alt="`Part image preview ${idx + 1}`"
+                            />
+                        </div>
                     </div>
                   </Field>
                   <Field>
@@ -398,18 +460,19 @@ defineOptions({
 
               <FieldSet>
                 <FieldGroup>
-                  <Field orientation="horizontal" class="items-start space-x-3 bg-muted/40 p-4 rounded-lg border">
-                    <Checkbox
-                      id="is_visible_to_public"
-                      :checked="form.is_visible_to_public"
-                      @update:checked="val => form.is_visible_to_public = !!val"
-                      class="mt-1"
-                    />
-                    <div class="space-y-1 leading-none">
-                        <FieldLabel for="is_visible_to_public" class="font-medium cursor-pointer text-base">
+                  <Field orientation="horizontal" class="items-center justify-between bg-muted/40 p-4 rounded-lg border">
+                    <div class="space-y-0.5">
+                        <FieldLabel for="is_visible_to_public" class="font-medium text-base">
                           Visible to Public Catalog
                         </FieldLabel>
+                        <FieldDescription class="text-sm">
+                          Make this part visible in the public catalog
+                        </FieldDescription>
                     </div>
+                    <Switch
+                      id="is_visible_to_public"
+                      v-model="isVisibleToPublic"
+                    />
                   </Field>
                 </FieldGroup>
               </FieldSet>
@@ -422,7 +485,7 @@ defineOptions({
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger as-child>
-                    <Button type="button" class="w-full sm:w-auto">
+                    <Button type="button" class="w-full sm:w-auto cursor-pointer">
                       Save Automotive Part
                     </Button>
                   </AlertDialogTrigger>
@@ -431,8 +494,8 @@ defineOptions({
                       <AlertDialogTitle>Are you sure you want to save this automotive part?</AlertDialogTitle>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction @click="submit">Yes</AlertDialogAction>
+                      <AlertDialogCancel class="cursor-pointer" >Cancel</AlertDialogCancel>
+                      <AlertDialogAction class="cursor-pointer" @click="submit">Yes</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -441,4 +504,19 @@ defineOptions({
             </FieldGroup>
         </form>
     </div>
+
+    <!-- Error Alert Dialog -->
+    <AlertDialog :open="showErrorAlert" @update:open="showErrorAlert = $event">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Upload Error</AlertDialogTitle>
+          <AlertDialogDescription>
+            {{ errorAlertMessage }}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction @click="showErrorAlert = false">OK</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 </template>

@@ -11,11 +11,13 @@ return new class extends Migration
         Schema::create('job_orders_parts', function (Blueprint $table) {
             $table->id('job_order_parts_id');
             $table->unsignedBigInteger('job_orders_id');
-            $table->unsignedBigInteger('automotive_parts_id'); 
+            $table->unsignedBigInteger('automotive_parts_id');
+            $table->unsignedBigInteger('variation_id')->nullable(); 
             $table->integer('quantity_used'); 
-            $table->decimal('subtotal', 10, 2); 
+            $table->decimal('subtotal', 10, 2);
+            $table->decimal('unit_price', 10, 2);
             $table->timestamps();
-
+            $table->foreign('variation_id')->references('variation_id')->on('part_variations')->onDelete('set null'); 
             $table->foreign('job_orders_id')->references('job_orders_id')->on('job_orders')->onDelete('cascade');
             $table->foreign('automotive_parts_id')->references('automotive_parts_id')->on('automotive_parts')->onDelete('cascade');
         });

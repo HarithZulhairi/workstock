@@ -56,31 +56,51 @@ class AutomotivePartsController extends Controller
     {
         $part = AutomotiveParts::findOrFail($id);
 
+        // Removed the 'min:0' constraints to allow negative numbers
         $request->validate([
-            'base_stock_add' => ['nullable', 'integer', 'min:0'],
+            'base_stock_add' => ['nullable', 'integer'],
             'variations' => ['nullable', 'array'],
             'variations.*.variation_id' => ['required', 'exists:part_variations,variation_id'],
-            'variations.*.add_quantity' => ['nullable', 'integer', 'min:0'],
+            'variations.*.add_quantity' => ['nullable', 'integer'],
         ]);
 
-        // Add to base stock if provided
-        if ($request->filled('base_stock_add') && $request->base_stock_add > 0) {
-            $part->increment('stock_quantity', $request->base_stock_add);
+        // Validate that base stock subtraction doesn't go below 0
+        if ($request->filled('base_stock_add')) {
+            $newBaseStock = $part->stock_quantity + $request->base_stock_add;
+            if ($newBaseStock < 0) {
+                return back()->withErrors(['base_stock_add' => 'Stock cannot drop below 0.']);
+            }
         }
 
-        // Add to variation stocks if provided
+        // Validate that variation stock subtraction doesn't go below 0
         if ($request->has('variations')) {
             foreach ($request->variations as $varData) {
-                if (isset($varData['add_quantity']) && $varData['add_quantity'] > 0) {
-                    $part->variations()
-                         ->where('variation_id', $varData['variation_id'])
-                         ->increment('stock_quantity', $varData['add_quantity']);
+                if (isset($varData['add_quantity'])) {
+                    $variation = $part->variations()->where('variation_id', $varData['variation_id'])->first();
+                    if ($variation && ($variation->stock_quantity + $varData['add_quantity'] < 0)) {
+                        return back()->withErrors(['variations' => 'Variation stock cannot drop below 0.']);
+                    }
                 }
             }
         }
 
-        // Optional: Flash a success message
-        return redirect()->back()->with('success', 'Stock added successfully!');
+        // Update base stock if provided (handles both positive and negative values)
+        if ($request->filled('base_stock_add') && $request->base_stock_add != 0) {
+            $part->increment('stock_quantity', $request->base_stock_add);
+        }
+
+        // Update variation stocks if provided
+        if ($request->has('variations')) {
+            foreach ($request->variations as $varData) {
+                if (isset($varData['add_quantity']) && $varData['add_quantity'] != 0) {
+                    $part->variations()
+                        ->where('variation_id', $varData['variation_id'])
+                        ->increment('stock_quantity', $varData['add_quantity']);
+                }
+            }
+        }
+
+        return redirect()->back()->with('success', 'Stock adjusted successfully!');
     }
 
     public function show($id)
@@ -99,7 +119,7 @@ class AutomotivePartsController extends Controller
             'price' => ['required', 'numeric', 'min:0'],
             'stock_quantity' => ['required', 'integer', 'min:0'],
             'part_description' => ['nullable', 'string'],
-            'is_visible_to_public' => ['boolean'],
+            'is_visible_to_public' => ['nullable', 'boolean'],
             'brand' => ['nullable', 'string', 'max:255'],
             'warranty' => ['nullable', 'string', 'max:255'],
             'dimensions' => ['nullable', 'string', 'max:255'],
@@ -114,6 +134,10 @@ class AutomotivePartsController extends Controller
             'variations.*.stock_quantity' => ['required_with:variations', 'integer', 'min:0'],
             'variations.*.picture' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:2048'],
         ]);
+
+        // Ensure is_visible_to_public is properly set as boolean
+        // When checkbox is unchecked, the value might be false, null, or not present
+        $validated['is_visible_to_public'] = filter_var($request->input('is_visible_to_public', false), FILTER_VALIDATE_BOOLEAN);
 
         // Handle Main Part Multiple Image Uploads
         if ($request->hasFile('part_images')) {
@@ -154,7 +178,7 @@ class AutomotivePartsController extends Controller
             }
         }
 
-        return redirect()->route('displayStock');
+        return redirect()->route('displayStock')->with('success', 'Part added successfully!');
     }
 
     public function destroy($id)
@@ -177,7 +201,7 @@ class AutomotivePartsController extends Controller
 
         $part->delete();
 
-        return redirect()->back();
+        return redirect()->back()->with('success', 'Part deleted successfully!');
     }
 
     public function edit($id)
@@ -203,7 +227,7 @@ class AutomotivePartsController extends Controller
             'price' => ['required', 'numeric', 'min:0'],
             // Notice: stock_quantity is removed from validation here!
             'part_description' => ['nullable', 'string'],
-            'is_visible_to_public' => ['boolean'],
+            'is_visible_to_public' => ['nullable', 'boolean'],
             'brand' => ['nullable', 'string', 'max:255'],
             'warranty' => ['nullable', 'string', 'max:255'],
             'dimensions' => ['nullable', 'string', 'max:255'],
@@ -217,6 +241,10 @@ class AutomotivePartsController extends Controller
             'variations.*.price' => ['required_with:variations', 'numeric', 'min:0'],
             'variations.*.picture' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:2048'],
         ]);
+
+        // Ensure is_visible_to_public is properly set as boolean
+        // When checkbox is unchecked, the value might be false, null, or not present
+        $validated['is_visible_to_public'] = filter_var($request->input('is_visible_to_public', false), FILTER_VALIDATE_BOOLEAN);
 
         // Handle Main Part Images (Only update if new files were uploaded)
         if ($request->hasFile('part_images')) {

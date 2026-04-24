@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { PackagePlus, Plus, Trash, ImagePlus } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import { Pencil, Plus, Trash, ImagePlus } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
 
 import { Button } from '@/components/ui/button';
@@ -28,12 +28,51 @@ import {
 
 import { Textarea } from '@/components/ui/textarea';
 
-import { displayStock, updateStock } from '@/routes';
+import { Switch } from '@/components/ui/switch';
 
-const props = defineProps({
-    part: { type: Object, required: true },
-    categories: { type: Array, required: true }
-});
+import { displayStock, editStock, updateStock } from '@/routes';
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+
+// Define props with proper TypeScript types
+const props = defineProps<{
+    part: {
+        automotive_parts_id: number;
+        name: string;
+        part_serial_number: string;
+        category_id: number;
+        price: number;
+        stock_quantity: number;
+        brand: string | null;
+        warranty: string | null;
+        dimensions: string | null;
+        condition: number | null;
+        part_images: string[] | null;
+        part_description: string | null;
+        is_visible_to_public: number | null;
+        variations: Array<{
+            variation_id: number;
+            name: string;
+            price: number;
+            stock_quantity: number;
+            picture: string | null;
+        }>;
+    };
+    categories: Array<{
+        category_id: number;
+        name: string;
+    }>;
+}>();
 
 interface Variation {
     variation_id?: number;
@@ -42,6 +81,16 @@ interface Variation {
     picture?: File | null;
     previewUrl?: string | null;
 }
+
+// Alert dialog state
+const showErrorAlert = ref(false);
+const errorAlertMessage = ref('');
+
+// Separate ref for checkbox to work with v-model
+// const isVisibleToPublic = ref((props.part.is_visible_to_public === true || props.part.is_visible_to_public === 1));
+const isVisibleToPublic = ref(props.part.is_visible_to_public == 1);
+// console.log(isVisibleToPublic.value, 'initial checkbox value, type:', typeof isVisibleToPublic.value);
+// console.log(props.part.condition, 'initial prop value, type:', typeof props.part.is_visible_to_public);
 
 // Map existing variations to our form structure
 const initialVariations = props.part.variations ? props.part.variations.map((v: any) => ({
@@ -53,7 +102,7 @@ const initialVariations = props.part.variations ? props.part.variations.map((v: 
 })) : [];
 
 const form = useForm({
-    _method: 'put', // CRUCIAL: Tells Laravel this is a PUT request, even though it sends via POST for files
+    _method: 'PUT',
     name: props.part.name,
     part_serial_number: props.part.part_serial_number,
     category_id: props.part.category_id.toString(),
@@ -64,8 +113,14 @@ const form = useForm({
     condition: props.part.condition?.toString() || '', 
     part_images: [] as File[], 
     part_description: props.part.part_description || '',
-    is_visible_to_public: props.part.is_visible_to_public == 1,
+    is_visible_to_public: isVisibleToPublic.value,
     variations: initialVariations as Variation[],
+});
+
+// Watch for checkbox changes and sync with form
+watch(isVisibleToPublic, (newVal) => {
+    console.log('Checkbox changed to:', newVal, 'type:', typeof newVal);
+    form.is_visible_to_public = newVal;
 });
 
 const addVariation = () => {
@@ -83,12 +138,26 @@ const handleImageUpload = (event: Event) => {
     const target = event.target as HTMLInputElement;
     if (target.files) {
         const filesArray = Array.from(target.files);
+        
         if (filesArray.length > 3) {
-            alert("You can only upload a maximum of 3 images.");
+            errorAlertMessage.value = "You can only upload a maximum of 3 images.";
+            showErrorAlert.value = true;
             target.value = ''; 
             form.part_images = [];
             return;
         }
+        
+        // Check each file size (2MB limit)
+        for (let i = 0; i < filesArray.length; i++) {
+            if (filesArray[i].size > 2 * 1024 * 1024) {
+                errorAlertMessage.value = `Image "${filesArray[i].name}" is too large. Maximum size is 2MB per image.`;
+                showErrorAlert.value = true;
+                target.value = ''; // Reset input
+                form.part_images = [];
+                return;
+            }
+        }
+        
         form.part_images = filesArray;
     }
 };
@@ -99,7 +168,8 @@ const handleVariationImageUpload = (event: Event, index: number) => {
         const file = target.files[0];
         
         if (file.size > 2 * 1024 * 1024) {
-            alert(`This picture is too large. The maximum size is 2MB.`);
+            errorAlertMessage.value = `This picture is too large. The maximum size is 2MB.`;
+            showErrorAlert.value = true;
             target.value = ''; 
             form.variations[index].picture = null;
             return;
@@ -147,7 +217,11 @@ const conditionColor = computed(() => {
 });
 
 const submit = () => {
-    form.post(updateStock(props.part.automotive_parts_id));
+    form.put(updateStock(props.part.automotive_parts_id), {
+        onSuccess: () => {
+            console.log('Part updated successfully');
+        }
+    });
 };
 
 defineOptions({
@@ -168,13 +242,13 @@ defineOptions({
         <Pencil class="w-8 h-8" />
       </div>
       <div>
-        <h1 class="text-2xl font-bold tracking-tight">Edit Part: {{ part.name }}</h1>
+        <h1 class="text-2xl font-bold tracking-tight">Edit {{ part.name }}</h1>
         <p class="text-gray-500 mt-1">Update specifications, pricing, and variations.</p>
       </div>
     </div>
 
     <div class="mb-10 px-4 w-full">
-        <form class="max-w-6xl mx-auto p-8 rounded-xl shadow-sm border bg-card text-card-foreground" @submit.prevent="submit">
+        <form class="max-w-6xl mx-auto p-8 rounded-xl shadow-sm border bg-card text-card-foreground" @submit.prevent>
             <FieldGroup>
               
               <FieldSet>
@@ -249,14 +323,23 @@ defineOptions({
               <FieldSet>
                 <FieldLegend>Base Pricing</FieldLegend>
                 <FieldDescription>
-                  Update the default selling price. (Stock is managed via the Inventory Dashboard).
+                  Set the default selling price. (Used if there are no variations).
                 </FieldDescription>
                 <FieldGroup>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <Field>
                         <FieldLabel for="price">Base Price (RM) <span class="text-red-500">*</span></FieldLabel>
-                        <Input id="price" v-model="form.price" type="number" step="0.01" min="0" required />
+                        <Input id="price" v-model="form.price" type="number" step="0.01" min="0" placeholder="0.00" required />
                         <InputError :message="form.errors.price" class="mt-2" />
+                      </Field>
+                      <Field>
+                        <FieldLabel>Current Stock Quantity</FieldLabel>
+                        <div class="px-3 py-2 bg-muted rounded-md text-sm font-medium">
+                          {{ part.stock_quantity }} units
+                        </div>
+                        <FieldDescription class="text-xs mt-1">
+                          Stock quantity cannot be edited here. Use the "Add Stock" feature to increase inventory.
+                        </FieldDescription>
                       </Field>
                   </div>
                 </FieldGroup>
@@ -267,7 +350,7 @@ defineOptions({
               <FieldSet>
                 <FieldLegend>Product Variations (Optional)</FieldLegend>
                 <FieldDescription>
-                  Modify specific versions of this part. Stock quantities are managed via the dashboard.
+                  Add or edit specific versions of this part. Each variation can have its own picture. Stock quantities for variations are managed separately.
                 </FieldDescription>
                 <FieldGroup>
                   <div 
@@ -279,6 +362,7 @@ defineOptions({
                         @click="removeVariation(index)" 
                         type="button" 
                         class="absolute top-3 right-3 text-red-400 hover:text-red-600 transition-colors p-1"
+                        title="Remove Variation"
                     >
                         <Trash class="w-5 h-5" />
                     </button>
@@ -288,11 +372,11 @@ defineOptions({
                     <div class="flex flex-col md:flex-row gap-6">
                         <div class="w-full md:w-32 flex flex-col gap-2 items-center">
                             <div class="w-32 h-32 rounded-lg border border-gray-200 bg-white flex items-center justify-center overflow-hidden">
-                                <img v-if="variation.previewUrl" :src="variation.previewUrl" class="object-cover w-full h-full" />
+                                <img v-if="variation.previewUrl" :src="variation.previewUrl" class="object-cover w-full h-full" alt="Variation preview" />
                                 <ImagePlus v-else class="w-8 h-8 text-gray-300" />
                             </div>
                             <label :for="'var_pic_' + index" class="cursor-pointer text-xs font-semibold text-primary hover:text-primary/80 bg-black/10 px-2 py-1 rounded-full">
-                                {{ variation.previewUrl ? 'Change Picture' : 'Add Picture' }}
+                                {{ variation.picture || variation.previewUrl ? 'Change Picture' : 'Add Picture' }}
                             </label>
                             <Input 
                                 :id="'var_pic_' + index" 
@@ -306,13 +390,21 @@ defineOptions({
                         <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
                             <Field>
                                 <FieldLabel :for="'var_name_' + index">Variation Name <span class="text-red-500">*</span></FieldLabel>
-                                <Input :id="'var_name_' + index" v-model="variation.name" required class="bg-white" />
+                                <Input :id="'var_name_' + index" v-model="variation.name" placeholder="e.g. Red, Metallic" required class="bg-white" />
                             </Field>
                             <Field>
                                 <FieldLabel :for="'var_price_' + index">Price (RM) <span class="text-red-500">*</span></FieldLabel>
                                 <Input :id="'var_price_' + index" v-model="variation.price" type="number" step="0.01" min="0" required class="bg-white" />
                             </Field>
                         </div>
+                    </div>
+                    
+                    <div v-if="variation.variation_id" class="mt-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md">
+                      <p class="text-xs text-blue-700">
+                        <span class="font-semibold">Current Stock:</span> 
+                        {{ part.variations.find(v => v.variation_id === variation.variation_id)?.stock_quantity || 0 }} units
+                        <span class="text-blue-600 ml-1">(Use "Add Stock" to increase)</span>
+                      </p>
                     </div>
                   </div>
 
@@ -327,7 +419,7 @@ defineOptions({
               <FieldSet>
                 <FieldLegend>Media & Description</FieldLegend>
                 <FieldDescription>
-                  Upload up to 3 images. Note: Uploading new images will replace the existing ones.
+                  Upload new images (up to 3) to replace existing ones, or provide technical specifications.
                 </FieldDescription>
                 <FieldGroup>
                   <Field>
@@ -340,16 +432,32 @@ defineOptions({
                       @change="handleImageUpload"
                       class="cursor-pointer file:text-primary file:font-semibold" 
                     />
-                    <div v-if="form.part_images.length === 0 && part.part_images && part.part_images.length > 0" class="mt-4 flex gap-2">
-                        <img v-for="(img, idx) in part.part_images" :key="idx" :src="`/storage/${img}`" class="w-16 h-16 object-cover rounded-md border" />
+                    <InputError :message="form.errors.part_images" class="mt-2" />
+                    <div v-if="form.part_images.length > 0" class="mt-2 text-sm text-gray-500">
+                        Selected {{ form.part_images.length }} new image(s).
                     </div>
-                    <div v-if="form.part_images.length > 0" class="mt-2 text-sm text-blue-600 font-medium">
-                        {{ form.part_images.length }} new image(s) selected (Will replace existing).
+                    <div v-else-if="part.part_images && part.part_images.length > 0" class="mt-2">
+                      <p class="text-sm text-gray-500 mb-2">Currently has {{ part.part_images.length }} existing image(s):</p>
+                      <div class="flex gap-2 flex-wrap">
+                        <img 
+                          v-for="(img, idx) in part.part_images" 
+                          :key="idx" 
+                          :src="`/storage/${img}`" 
+                          class="w-20 h-20 object-cover rounded-md border border-gray-200 shadow-sm" 
+                          :alt="`Part image ${idx + 1}`"
+                        />
+                      </div>
                     </div>
                   </Field>
                   <Field>
                     <FieldLabel for="part_description">Description & Specifications</FieldLabel>
-                    <Textarea id="part_description" v-model="form.part_description" class="resize-y min-h-[100px]" />
+                    <Textarea
+                      id="part_description"
+                      v-model="form.part_description"
+                      placeholder="Enter vehicle compatibility, or technical notes..."
+                      class="resize-y min-h-[100px]"
+                    />
+                    <InputError :message="form.errors.part_description" class="mt-2" />
                   </Field>
                 </FieldGroup>
               </FieldSet>
@@ -358,32 +466,63 @@ defineOptions({
 
               <FieldSet>
                 <FieldGroup>
-                  <Field orientation="horizontal" class="items-start space-x-3 bg-muted/40 p-4 rounded-lg border">
-                    <Checkbox
-                      id="is_visible_to_public"
-                      :checked="form.is_visible_to_public"
-                      @update:checked="val => form.is_visible_to_public = !!val"
-                      class="mt-1"
-                    />
-                    <div class="space-y-1 leading-none">
-                        <FieldLabel for="is_visible_to_public" class="font-medium cursor-pointer text-base">
+                  <Field orientation="horizontal" class="items-center justify-between bg-muted/40 p-4 rounded-lg border">
+                    <div class="space-y-0.5">
+                        <FieldLabel for="is_visible_to_public" class="font-medium text-base">
                           Visible to Public Catalog
                         </FieldLabel>
+                        <FieldDescription class="text-sm">
+                          Make this part visible in the public catalog
+                        </FieldDescription>
                     </div>
+                    <Switch
+                      id="is_visible_to_public"
+                      v-model="isVisibleToPublic"
+                    />
                   </Field>
                 </FieldGroup>
               </FieldSet>
 
               <div class="flex items-center justify-end gap-4 mt-8 pt-6 border-t">
                 <Button variant="outline" class="w-full sm:w-auto" as-child>
-                    <Link :href="displayStock()">Cancel Edit</Link>
+                    <Link :href="displayStock()">
+                        Back to Stock List
+                    </Link>
                 </Button>
-                <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">
-                    {{ form.processing ? 'Saving...' : 'Update Automotive Part' }}
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger as-child>
+                    <Button type="button" class="w-full sm:w-auto cursor-pointer">
+                      Update Automotive Part
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure you want to update this automotive part?</AlertDialogTitle>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel class="cursor-pointer" >Cancel</AlertDialogCancel>
+                      <AlertDialogAction class="cursor-pointer" @click="submit">Yes, Update</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
 
             </FieldGroup>
         </form>
     </div>
+
+    <!-- Error Alert Dialog -->
+    <AlertDialog :open="showErrorAlert" @update:open="showErrorAlert = $event">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Upload Error</AlertDialogTitle>
+          <AlertDialogDescription>
+            {{ errorAlertMessage }}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction @click="showErrorAlert = false">OK</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 </template>

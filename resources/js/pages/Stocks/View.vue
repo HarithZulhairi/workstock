@@ -189,7 +189,7 @@ defineOptions({
                                 <div>
                                     <p class="text-sm font-medium text-gray-500">Availability</p>
                                     <div class="flex items-center gap-2 mt-0.5">
-                                        <div class="w-2 h-2 rounded-full" :class="displayStockQty > 0 ? 'bg-emerald-500' : 'bg-red-500'"></div>
+                                        <div class="w-2 h-2 rounded-full" :class="displayStockQty > 5 ? 'bg-emerald-500' : (displayStockQty > 0 ? 'bg-amber-500' : 'bg-red-500')"></div>
                                         <p class="font-semibold text-gray-900 transition-all duration-200">
                                             {{ displayStockQty > 0 ? `${displayStockQty} Units in Stock` : 'Out of Stock' }}
                                         </p>
@@ -255,11 +255,11 @@ defineOptions({
                                     <p class="text-sm font-medium text-gray-500">Condition</p>
                                     <p class="font-semibold text-gray-900 mt-0.5">
                                         {{ part.condition }} / 10
-                                        <span v-if="part.condition >= 8">(New)</span>
-                                        <span v-if="part.condition < 8 && part.condition >= 6">(Like New)</span>
-                                        <span v-if="part.condition < 6 && part.condition >= 4">(Used)</span>
-                                        <span v-if="part.condition < 4 && part.condition >= 2">(Heavily used)</span>
-                                        <span v-if="part.condition < 2">(Poor)</span>
+                                        <span class="text-emerald-600" v-if="part.condition >= 8">(New)</span>
+                                        <span class="text-blue-600" v-if="part.condition < 8 && part.condition >= 6">(Like New)</span>
+                                        <span class="text-amber-600" v-if="part.condition < 6 && part.condition >= 4">(Used)</span>
+                                        <span class="text-orange-600" v-if="part.condition < 4 && part.condition >= 2">(Heavily used)</span>
+                                        <span class="text-red-600" v-if="part.condition < 2">(Poor)</span>
                                     </p>
                                 </div>
                             </div>

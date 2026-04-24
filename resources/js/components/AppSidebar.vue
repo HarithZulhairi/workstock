@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid, Warehouse, PackagePlus } from 'lucide-vue-next';
+import { BookOpen, FolderGit2, LayoutGrid, Warehouse, PackagePlus, Briefcase, BriefcaseMedical } from 'lucide-vue-next';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -14,7 +14,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard, displayStock, createStock } from '@/routes';
+import { dashboard, displayStock, createStock, displayJobOrders, createJobOrder } from '@/routes';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -33,6 +33,17 @@ const mainNavItems: NavItem[] = [
         href: createStock(),
         icon: PackagePlus,
     },
+    {
+        title: 'Display Job Orders',
+        href: displayJobOrders(),
+        icon: Briefcase,
+    },
+    {
+        title: 'Add Job Order',
+        href: createJobOrder(),
+        icon: BriefcaseMedical,
+    },
+    
 ];
 
 const footerNavItems: NavItem[] = [

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { toast } from 'vue-sonner';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import debounce from 'lodash/debounce'; 
 import { Warehouse, Pencil, Trash, PackageOpen, Eye, EyeOff, Search, FilterX, Plus } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge'; 
@@ -75,6 +75,29 @@ const props = defineProps({
     filters: { type: Object, default: () => ({}) }, // Receive active filters
 });
 
+// Use Inertia's usePage to access globally shared flash messages
+const page = usePage();
+
+// We'll use local refs so we can control when it appears and disappears
+const showSuccessToast = ref(false);
+const toastMessage = ref('');
+const flashSuccess = computed(() => page.props.flash?.success);
+
+watch(flashSuccess, (newVal) => {
+    if (newVal) {
+        toastMessage.value = newVal;
+        showSuccessToast.value = true;
+        
+        // Clear the global Inertia state so it doesn't fire again on navigation
+        page.props.flash.success = null; 
+
+        // Auto-hide the toast after 3 seconds
+        setTimeout(() => {
+            showSuccessToast.value = false;
+        }, 3000);
+    }
+}, { immediate: true });
+
 // Setup Reactive Form State initialized with URL parameters
 const filterForm = ref({
     search: props.filters.search || '',
@@ -127,12 +150,6 @@ const submitRowStock = (partId: number, baseStockAdd: number | string, variation
         base_stock_add: baseAdd,
         variations: formattedVariations
     }, {
-        onSuccess: () => {
-            toast.success(' Stock added successfully!');
-        },
-        onError: () => {
-            toast.error('Failed to add stock. Please check your inputs.');
-        },
         preserveScroll: true,
     });
 };
@@ -140,12 +157,6 @@ const submitRowStock = (partId: number, baseStockAdd: number | string, variation
 const deletePart = (id: number) => {
     router.post(destroyStock(id), { },{
         preserveScroll: true,
-        onSuccess: () => {
-            toast.success('Part deleted successfully!');
-        },
-        onError: () => {
-            toast.error('Failed to delete part.');
-        }
     });
 };
 
@@ -181,18 +192,33 @@ defineOptions({
       </Button>
     </div>
 
-    <Toaster 
-        class="px-12"
-        position="top-right" 
-        :toastOptions="{
-            classes: {
-                toast: 'group flex w-full items-center p-4 rounded-xl shadow-lg border',
-                success: 'bg-emerald-50 border-emerald-200 text-emerald-900',
-                error: 'bg-red-50 border-red-200 text-red-900',
-                info: 'bg-blue-50 border-blue-200 text-blue-900',
-            }
-        }" 
-    />
+    <Transition
+        enter-active-class="transform ease-out duration-300 transition"
+        enter-from-class="-translate-y-4 opacity-0 scale-95"
+        enter-to-class="translate-y-0 opacity-100 scale-100"
+        leave-active-class="transition ease-in duration-200"
+        leave-from-class="opacity-100 scale-100"
+        leave-to-class="-translate-y-4 opacity-0 scale-95"
+    >
+        <div 
+            v-if="showSuccessToast" 
+            class="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 p-4 w-full min-w-[300px] max-w-sm rounded-xl shadow-lg border bg-emerald-50 border-emerald-200 text-emerald-900"
+        >
+            <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            
+            <p class="font-medium text-sm flex-1">{{ toastMessage }}</p>
+            
+            <button @click="showSuccessToast = false" class="text-emerald-500 hover:text-emerald-700 transition-colors focus:outline-none">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+    </Transition>
 
     <div class="pb-12 pt-4 px-4">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -316,26 +342,26 @@ defineOptions({
                         <div class="flex items-center justify-end gap-2">
                             <Dialog>
                                 <DialogTrigger as-child>
-                                    <Button variant="ghost" size="icon" title="Add Availability" class="h-8 w-8 text-gray-500 hover:text-green-600 hover:bg-green-50 cursor-pointer">
+                                    <Button variant="ghost" size="icon" title="Adjust Availability" class="h-8 w-8 text-gray-500 hover:text-green-600 hover:bg-green-50 cursor-pointer">
                                         <Plus class="w-4 h-4" />
                                     </Button>
                                 </DialogTrigger>
-                                
+
                                 <DialogContent class="sm:max-w-[425px] text-left">
                                     <form @submit.prevent="submitRowStock(part.automotive_parts_id, part.temp_base_add, part.variations)">
                                         <DialogHeader>
-                                            <DialogTitle>Add Availability</DialogTitle>
+                                            <DialogTitle>Adjust Availability</DialogTitle>
                                             <DialogDescription>
-                                                Add the amount of stock received for this part.
+                                                Add or subtract the amount of stock for this part. Use negative numbers to correct over-added stock.
                                             </DialogDescription>
                                         </DialogHeader>
                                         
                                         <div class="grid gap-6 py-4">
                                             
                                             <div class="grid gap-2 bg-gray-50 p-4 rounded-lg border border-gray-100">
-                                                <NumberField id="base-stock-add" v-model="part.temp_base_add" :default-value="0" :min="0">
+                                                <NumberField id="base-stock-add" v-model="part.temp_base_add" :default-value="0" :min="-part.stock_quantity">
                                                     <Label for="base-stock-add" class="font-semibold text-gray-900">{{ part.name }}</Label>
-                                                    <span class="text-xs text-gray-500 block mb-2">Current Base Stock: {{ part.stock_quantity }}</span>
+                                                    <span class="text-xs text-gray-500 block mb-2">Current Base / Default variation stock: <b>{{ part.stock_quantity }}</b></span>
                                                     <NumberFieldContent>
                                                         <NumberFieldDecrement />
                                                         <NumberFieldInput class="text-center bg-white" />
@@ -350,23 +376,21 @@ defineOptions({
                                                 <div v-for="variation in part.variations" :key="variation.variation_id" class="flex items-center justify-between gap-4 py-2 border-b border-gray-50 last:border-0">
                                                     <div class="flex flex-col text-left">
                                                         <span class="font-medium text-gray-700">{{ variation.name }}</span>
-                                                        <span class="text-xs text-gray-500">Current: {{ variation.stock_quantity }}</span>
+                                                        <span class="text-xs text-gray-500">Current: <b>{{ variation.stock_quantity }}</b></span>
                                                     </div>
                                                     <div class="flex items-center gap-2 w-32">
-                                                        <span class="text-gray-400 font-bold">+</span>
+                                                        <span class="text-gray-400 font-bold">+/-</span>
                                                         
-                                                        <NumberField v-model="variation.temp_add_quantity" :default-value="0" :min="0" class="w-full">
+                                                        <NumberField v-model="variation.temp_add_quantity" :default-value="0" :min="-variation.stock_quantity" class="w-full">
                                                             <NumberFieldContent>
                                                                 <NumberFieldDecrement />
                                                                 <NumberFieldInput class="text-center bg-white" />
                                                                 <NumberFieldIncrement />
                                                             </NumberFieldContent>
                                                         </NumberField>
-
                                                     </div>
                                                 </div>
                                             </div>
-
                                         </div>
                                         
                                         <DialogFooter>
