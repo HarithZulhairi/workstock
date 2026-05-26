@@ -24,6 +24,8 @@ return new class extends Migration
             $table->boolean('is_visible_to_public')->default(true);
             $table->timestamps();
 
+            $table->softDeletes();
+
             $table->foreign('category_id')->references('category_id')->on('categories')->onDelete('cascade');
         });
     }

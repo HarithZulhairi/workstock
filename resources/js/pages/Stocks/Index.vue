@@ -3,7 +3,7 @@ import { ref, watch, computed } from 'vue';
 import { toast } from 'vue-sonner';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import debounce from 'lodash/debounce'; 
-import { Warehouse, Pencil, Trash, PackageOpen, Eye, EyeOff, Search, FilterX, Plus } from 'lucide-vue-next';
+import { Warehouse, Pencil, Trash, PackageOpen, Eye, EyeOff, Search, FilterX, Plus, CircleAlert } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge'; 
 import { Button } from '@/components/ui/button';
 
@@ -77,6 +77,9 @@ const props = defineProps({
 
 // Use Inertia's usePage to access globally shared flash messages
 const page = usePage();
+
+const isPreviewOpen = ref(false);
+const previewImageUrl = ref('');
 
 // We'll use local refs so we can control when it appears and disappears
 const showSuccessToast = ref(false);
@@ -160,6 +163,12 @@ const deletePart = (id: number) => {
     });
 };
 
+const openPreview = (url: string) => {
+    previewImageUrl.value = url;
+    isPreviewOpen.value = true;
+};
+
+
 defineOptions({ 
     layout: { breadcrumbs: 
         [ 
@@ -178,8 +187,8 @@ defineOptions({
 
     <div class="my-6 px-12 max-w-7xl flex items-start justify-between gap-4">
       <div class="flex items-center gap-4">
-          <div class="p-3 bg-primary/10 text-primary rounded-xl shadow-sm border border-primary/20">
-            <Warehouse class="w-7 h-7" />
+          <div>
+            <img src="/images/inventory.png" alt="WorkStock Logo" class="h-12 w-12" />
           </div>
           <div>
             <h1 class="text-2xl font-bold tracking-tight text-gray-900">Inventory Dashboard</h1>
@@ -187,8 +196,11 @@ defineOptions({
           </div>
       </div>
       
-      <Button as-child class="shadow-sm">
-        <Link :href="createStock()">Add New Part</Link>
+      <Button as-child class="shadow-sm bg-green-600 hover:bg-green-700 text-white">
+        <Link :href="createStock()">
+            <Plus class="w-4 h-4" />
+            Add New Part
+        </Link>
       </Button>
     </div>
 
@@ -282,12 +294,15 @@ defineOptions({
                     >
                       <TableCell class="pl-6 py-4">
                         <div class="flex items-center gap-4">
-                            <div class="h-12 w-12 flex-shrink-0 rounded-lg overflow-hidden bg-gray-50 border border-gray-200 shadow-sm flex items-center justify-center relative group-hover:border-gray-300 transition-colors">
+                            <div 
+                                @click="openPreview(`/storage/${part.part_images[0]}`)"
+                                class="h-12 w-12 flex-shrink-0 rounded-lg overflow-hidden bg-gray-50 border border-gray-200 shadow-sm flex items-center justify-center relative group-hover:border-gray-300 transition-colors"
+                                >
                               <img 
                                 v-if="part.part_images && part.part_images.length > 0" 
                                 :src="`/storage/${part.part_images[0]}`" 
                                 alt="Part Image Thumbnail" 
-                                class="object-cover w-full h-full" 
+                                class="object-cover w-full h-full transition-transform hover:scale-110 cursor-pointer" 
                               />
                               <PackageOpen v-else class="w-5 h-5 text-gray-300" />
                             </div>
@@ -295,7 +310,7 @@ defineOptions({
                             <div class="flex flex-col">
                                 <span class="font-semibold text-gray-900 leading-tight flex items-center gap-2">
                                     {{ part.name }}
-                                    <span v-if="part.brand" class="text-[10px] font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded uppercase tracking-wider border border-gray-200">
+                                    <span v-if="part.brand" class="text-xs font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded uppercase tracking-wider border border-gray-200">
                                         {{ part.brand }}
                                     </span>
                                 </span>
@@ -330,7 +345,7 @@ defineOptions({
                       <TableCell>
                           <Badge 
                             :variant="part.is_visible_to_public ? 'default' : 'secondary'"
-                            class="flex w-fit items-center gap-1.5"
+                            class="flex w-fit items-center gap-1.5 text-xs font-medium"
                           >
                             <Eye v-if="part.is_visible_to_public" class="w-3 h-3" />
                             <EyeOff v-else class="w-3 h-3 text-gray-500" />
@@ -350,7 +365,14 @@ defineOptions({
                                 <DialogContent class="sm:max-w-[425px] text-left">
                                     <form @submit.prevent="submitRowStock(part.automotive_parts_id, part.temp_base_add, part.variations)">
                                         <DialogHeader>
-                                            <DialogTitle>Adjust Availability</DialogTitle>
+                                            <DialogTitle class="flex items-center gap-2">
+                                                <div class="p-2 bg-green-100/80 text-green-500 border-1 border-green-200 rounded-xl">
+                                                    <Plus class="w-4 h-4" />
+                                                </div>
+                                                <div>
+                                                    Adjust Availability
+                                                </div>
+                                            </DialogTitle>
                                             <DialogDescription>
                                                 Add or subtract the amount of stock for this part. Use negative numbers to correct over-added stock.
                                             </DialogDescription>
@@ -398,7 +420,7 @@ defineOptions({
                                                 <Button class="cursor-pointer" type="button" variant="outline">Cancel</Button>
                                             </DialogClose>
                                             <DialogClose as-child>
-                                                <Button class="cursor-pointer" type="submit" >
+                                                <Button class="cursor-pointer bg-green-600 hover:bg-green-700 text-white" type="submit" >
                                                     Save changes
                                                 </Button>
                                             </DialogClose>
@@ -424,11 +446,45 @@ defineOptions({
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure you want to delete {{ part.name }}?</AlertDialogTitle>
+                                        <AlertDialogTitle class="flex items-center gap-2">
+                                            <div class="p-2 bg-red-100/80 text-red-500 border border-red-200 rounded-xl">
+                                                <Trash class="w-4 h-4" />
+                                            </div>
+                                            <div>
+                                                Delete
+                                            </div>
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Are you sure you want to delete this automotive part?
+                                            <div class="mt-2 rounded-lg border bg-muted/30 p-3">
+                                                <div class="flex items-start gap-2 text-sm font-medium">
+                                                    <div class="items-center">
+                                                        <span class="text-muted-foreground">#{{ part.automotive_parts_id }}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span>{{ part.name }}</span>
+                                                        <p class="text-muted-foreground">{{ part.part_serial_number }}</p>
+                                                    </div>
+                                                    
+                                                </div>
+                                            </div> 
+                                            <div class="mt-2 rounded-lg border border-red-200 bg-red-50 p-3 ">
+                                                <div class="flex flex-col gap-2 text-sm font-medium text-red-900">
+                                                    <div class="flex items-center gap-1 text-red-600">
+                                                        <CircleAlert class="w-4 h-4"/>Note:
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        Past Job Orders that used this part will remain completely unaffected to preserve historical billing accuracy.
+                                                    </div>
+
+                                                </div>
+                                            </div> 
+                                        </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel class="cursor-pointer" >Cancel</AlertDialogCancel>
-                                        <AlertDialogAction class="cursor-pointer" @click="deletePart(part.automotive_parts_id)">Yes</AlertDialogAction>
+                                        <AlertDialogAction class="cursor-pointer bg-red-600 hover:bg-red-700 text-white" @click="deletePart(part.automotive_parts_id)">Delete</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
@@ -535,4 +591,21 @@ defineOptions({
             </div>
         </div>
     </div>
+
+    <!-- Image Preview Modal -->
+    <Dialog v-model:open="isPreviewOpen">
+        <DialogContent :show-close-button="false"
+            class="max-w-4xl p-0 overflow-hidden border-none bg-transparent shadow-none flex items-center justify-center sm:max-w-[90vw]">
+            <div class="relative w-full h-full flex items-center justify-center p-4">
+                <img :src="previewImageUrl"
+                    class="max-h-[90vh] w-auto rounded-lg shadow-2xl object-contain bg-white/10 backdrop-blur-sm" />
+
+                <!-- Highly Visible Close Button -->
+                <button @click="isPreviewOpen = false"
+                    class="absolute top-8 right-8 z-[60] flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-2xl ring-4 ring-black/10 transition-all hover:scale-110 active:scale-95 cursor-pointer">
+                    <Plus class="h-6 w-6 rotate-45 text-black" />
+                </button>
+            </div>
+        </DialogContent>
+    </Dialog>
 </template>

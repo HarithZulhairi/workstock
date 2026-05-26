@@ -47,11 +47,13 @@ const props = defineProps<{
         price: number; 
         stock_quantity: number; 
         part_serial_number: string;
+        part_images?: string[];
         variations?: Array<{
             variation_id: number;
             name: string;
             price: number;
             stock_quantity: number;
+            picture?: string;
         }>;
     }>;
 }>();
@@ -65,7 +67,7 @@ const form = useForm({
     vehicle_model: '',
     vehicle_picture: null as File | null,
     reported_issue: '',
-    status: 'Not Started Yet',
+    status: 'Pending',
     total_cost: 0.00,
     parts_used: [] as Array<{
         automotive_parts_id: string;
@@ -92,11 +94,69 @@ const removePartRow = (index: number) => {
     calculateTotal();
 };
 
-// Get available variations for a selected part
-const getVariationsForPart = (partId: string) => {
+// Get available base stock for a selected part
+const getBaseStock = (partId: string) => {
     if (!partId) return [];
     const part = props.parts.find(p => p.automotive_parts_id.toString() === partId);
-    return part?.variations || [];
+    return part?.stock_quantity || 0;
+};
+
+// Check if a specific variation is already used in another row
+const isVariationSelected = (variationId: string | number | null, currentIndex: number) => {
+    return form.parts_used.some((row, i) => 
+        i !== currentIndex && // Don't check the current row against itself
+        row.variation_id == variationId
+    );
+};
+
+// Check if the BASE part (no variation) is already used in another row
+const isBasePartSelected = (partId: string | number, currentIndex: number) => {
+    return form.parts_used.some((row, i) => 
+        i !== currentIndex && 
+        row.automotive_parts_id == partId && 
+        row.variation_id == null
+    );
+};
+
+// Get available variations for a selected part dropdown (Hides variations already selected)
+const getVariationsForPart = (partId: string, currentIndex: number) => {
+    if (!partId) return [];
+    
+    const part = props.parts.find(p => p.automotive_parts_id.toString() === partId);
+    if (!part || !part.variations) return [];
+
+    // Return only variations that haven't been selected in OTHER rows
+    return part.variations.filter(v => !isVariationSelected(v.variation_id, currentIndex));
+};
+
+// Determine if a Part should be hidden from the main "Select Part" dropdown
+const isPartFullySelected = (part: any, currentIndex: number) => {
+    // 1. Is the base part already selected?
+    const baseSelected = form.parts_used.some((row, i) => 
+        i !== currentIndex && 
+        row.automotive_parts_id == part.automotive_parts_id && 
+        row.variation_id == null
+    );
+
+    // 2. Are ALL variations of this part already selected?
+    let allVariationsSelected = false;
+    if (part.variations && part.variations.length > 0) {
+        allVariationsSelected = part.variations.every((v: any) => 
+            isVariationSelected(v.variation_id, currentIndex)
+        );
+    } else {
+        // If it has no variations, and the base is selected, it's fully selected
+        allVariationsSelected = baseSelected;
+    }
+
+    // A part is "Fully Selected" (and should be hidden) if BOTH the base part is used
+    // AND all its variations are used.
+    return baseSelected && allVariationsSelected;
+};
+
+// Filter the main Parts dropdown to hide fully consumed parts
+const getAvailableParts = (currentIndex: number) => {
+    return props.parts.filter(part => !isPartFullySelected(part, currentIndex));
 };
 
 // Get maximum available stock for a part row
@@ -137,8 +197,9 @@ const validateQuantity = (index: number) => {
 const onPartSelect = (index: number) => {
     const selectedPartId = form.parts_used[index].automotive_parts_id;
     if (!selectedPartId) return;
+
     
-    const part = props.parts.find(p => p.automotive_parts_id.toString() === selectedPartId);
+    const part = props.parts.find(p => p.automotive_parts_id == selectedPartId);
     
     if (part) {
         // Reset variation when part changes
@@ -184,12 +245,40 @@ const getStockDisplay = (index: number) => {
     const row = form.parts_used[index];
     
     if (!row.automotive_parts_id) return '';
+
+    if (maxStock === 0) {
+        return '(Out of stock)';
+    }
     
     if (row.variation_id) {
         return `(Max: ${maxStock} available)`;
     }
     
     return `(Max: ${maxStock} available)`;
+};
+
+// Get image for the selected part/variation
+const getPartImage = (index: number) => {
+    const row = form.parts_used[index];
+    if (!row.automotive_parts_id) return null;
+    
+    const part = props.parts.find(p => p.automotive_parts_id.toString() === row.automotive_parts_id);
+    if (!part) return null;
+    
+    // If variation is selected and has an image, use it
+    if (row.variation_id) {
+        const variation = part.variations?.find(v => v.variation_id.toString() === row.variation_id);
+        if (variation?.picture) {
+            return `/storage/${variation.picture}`;
+        }
+    }
+    
+    // Otherwise, use base part image if available
+    if (part.part_images && part.part_images.length > 0) {
+        return `/storage/${part.part_images[0]}`;
+    }
+    
+    return null;
 };
 
 // Calculate grand total
@@ -249,8 +338,8 @@ const submit = () => {
     <Head title="Create Job Order" />
 
     <div class="my-6 px-12 flex items-start gap-4">
-        <div class="p-3 bg-blue-500/10 text-blue-600 rounded-xl">
-            <ClipboardSignature class="w-8 h-8" />
+        <div>
+            <img src="/images/application.png" alt="WorkStock Logo" class="h-12 w-12" />
         </div>
         <div>
             <h1 class="text-2xl font-bold tracking-tight">Create Job Order</h1>
@@ -305,7 +394,7 @@ const submit = () => {
                                         <SelectValue placeholder="Select status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Not Started Yet">Not Started Yet</SelectItem>
+                                        <SelectItem value="Pending">Pending</SelectItem>
                                         <!-- <SelectItem value="Fixing in Progress">Fixing in Progress</SelectItem>
                                         <SelectItem value="Waiting for Orders">Waiting for Orders</SelectItem>
                                         <SelectItem value="Completed">Completed</SelectItem> -->
@@ -376,38 +465,76 @@ const submit = () => {
                             <button 
                                 @click="removePartRow(index)" 
                                 type="button" 
-                                class="absolute top-3 right-3 text-red-400 hover:text-red-600 transition-colors p-1"
+                                class="absolute top-3 right-3 text-red-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
                                 title="Remove Part"
                             >
                                 <Trash class="w-5 h-5" />
                             </button>
 
-                            <h4 class="font-medium text-sm text-gray-500 mb-4">Part #{{ index + 1 }}</h4>
+                            <div class="flex items-start gap-4 mb-4">
+                                <!-- Part Image -->
+                                <div class="flex-shrink-0">
+                                    <div v-if="getPartImage(index)" class="w-20 h-20 rounded-lg border-2 border-gray-200 overflow-hidden bg-white shadow-sm">
+                                        <img 
+                                            :src="getPartImage(index)!" 
+                                            :alt="row.automotive_parts_id ? props.parts.find(p => p.automotive_parts_id.toString() === row.automotive_parts_id)?.name : 'Part'" 
+                                            class="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <div v-else class="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 bg-gray-100 flex items-center justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                                            <polyline points="21 15 16 10 5 21"/>
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                <!-- Part Number Label -->
+                                <div class="flex-1">
+                                    <h4 class="font-medium text-sm text-gray-500">Part #{{ index + 1 }}</h4>
+                                    <p v-if="row.automotive_parts_id" class="text-xs text-gray-400 mt-1">
+                                        {{ props.parts.find(p => p.automotive_parts_id.toString() === row.automotive_parts_id)?.name }}
+                                        <span v-if="row.variation_id" class="text-blue-600">
+                                            • {{ props.parts.find(p => p.automotive_parts_id.toString() === row.automotive_parts_id)?.variations?.find(v => v.variation_id.toString() === row.variation_id)?.name }}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
                             
                             <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                                 <div class="md:col-span-10">
                                     <FieldLabel>Select Part</FieldLabel>
                                     <Select class="w-100" v-model="row.automotive_parts_id" @update:model-value="() => onPartSelect(index)">
                                         <SelectTrigger class="bg-white w-full">
-                                            <SelectValue placeholder="Search part..." />
+                                            <SelectValue placeholder="Select part..." />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem v-for="part in parts" :key="part.automotive_parts_id" :value="part.automotive_parts_id.toString()">
+                                            <SelectItem 
+                                                v-for="part in getAvailableParts(index)" 
+                                                :key="part.automotive_parts_id" 
+                                                :value="part.automotive_parts_id.toString()"
+                                            >
                                                 {{ part.name }} ({{ part.part_serial_number }}) - RM {{ part.price }}
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div class="md:col-span-5" v-if="row.automotive_parts_id && getVariationsForPart(row.automotive_parts_id).length > 0">
+                                <div class="md:col-span-5" v-if="row.automotive_parts_id && props.parts.find(p => p.automotive_parts_id.toString() == row.automotive_parts_id)?.variations?.length > 0">
                                     <FieldLabel>Variation (Optional)</FieldLabel>
                                     <Select v-model="row.variation_id" @update:model-value="() => onVariationSelect(index)">
                                         <SelectTrigger class="bg-white w-full">
                                             <SelectValue placeholder="Base / Select variation..." />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem :value="null">Base / Default variation (No Variation)</SelectItem>
+                                            <!-- Hide Base Part option if another row is already using the Base Part -->
+                                            <SelectItem :value="null" :disabled="isBasePartSelected(row.automotive_parts_id, index)">
+                                                Base / Default variation (Stock: {{ getBaseStock(row.automotive_parts_id) }})
+                                            </SelectItem>
+                                            
+                                            <!-- Use the new function with the index passed in -->
                                             <SelectItem 
-                                                v-for="variation in getVariationsForPart(row.automotive_parts_id)" 
+                                                v-for="variation in getVariationsForPart(row.automotive_parts_id, index)"
                                                 :key="variation.variation_id" 
                                                 :value="variation.variation_id.toString()"
                                             >
@@ -423,7 +550,13 @@ const submit = () => {
                                 <div class="md:col-span-3">
                                     <FieldLabel>
                                         Quantity 
-                                        <span v-if="row.automotive_parts_id" class="text-xs text-gray-500 font-normal ml-1">
+                                        <span 
+                                            v-if="row.automotive_parts_id" 
+                                            :class="[
+                                                'text-xs font-normal ml-1', 
+                                                getMaxStock(index) === 0 ? 'text-red-500 font-bold' : 'text-gray-500'
+                                            ]"
+                                        >
                                             {{ getStockDisplay(index) }}
                                         </span>
                                     </FieldLabel>
@@ -448,7 +581,7 @@ const submit = () => {
                             </div>
                         </div>
 
-                        <Button type="button" variant="outline" @click="addPartRow" class="w-full md:w-auto border-dashed border-2 hover:bg-gray-50 hover:text-primary">
+                        <Button type="button" variant="outline" @click="addPartRow" class="w-full md:w-auto border-dashed border-2 hover:bg-gray-50 hover:text-primary cursor-pointer">
                             <Plus class="w-4 h-4 mr-2" /> Add Part
                         </Button>
                     </FieldGroup>

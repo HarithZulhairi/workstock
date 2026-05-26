@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'profile_picture', 
-    'full_name', 
+    'name', 
     'email', 
     'password', 
     'phone_number', 

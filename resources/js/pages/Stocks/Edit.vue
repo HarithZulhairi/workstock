@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
-import { Pencil, Plus, Trash, ImagePlus } from 'lucide-vue-next';
+import { Pencil, Plus, Trash, ImagePlus, CircleAlert } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
 
@@ -238,9 +238,12 @@ defineOptions({
     <Head title="Edit Automotive Part" />
 
     <div class="my-6 px-12 flex items-start gap-4">
-      <div class="p-3 bg-primary/10 text-primary rounded-xl">
-        <Pencil class="w-8 h-8" />
+      <div>
+        <img src="/images/utilization.png" alt="WorkStock Logo" class="h-15 w-15" />
       </div>
+      <!-- <div class="p-3 bg-primary/10 text-primary rounded-xl">
+        <Pencil class="w-8 h-8" />
+      </div> -->
       <div>
         <h1 class="text-2xl font-bold tracking-tight">Edit {{ part.name }}</h1>
         <p class="text-gray-500 mt-1">Update specifications, pricing, and variations.</p>
@@ -361,7 +364,7 @@ defineOptions({
                     <button 
                         @click="removeVariation(index)" 
                         type="button" 
-                        class="absolute top-3 right-3 text-red-400 hover:text-red-600 transition-colors p-1"
+                        class="absolute top-3 right-3 text-red-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
                         title="Remove Variation"
                     >
                         <Trash class="w-5 h-5" />
@@ -375,7 +378,7 @@ defineOptions({
                                 <img v-if="variation.previewUrl" :src="variation.previewUrl" class="object-cover w-full h-full" alt="Variation preview" />
                                 <ImagePlus v-else class="w-8 h-8 text-gray-300" />
                             </div>
-                            <label :for="'var_pic_' + index" class="cursor-pointer text-xs font-semibold text-primary hover:text-primary/80 bg-black/10 px-2 py-1 rounded-full">
+                            <label :for="'var_pic_' + index" class="cursor-pointer text-xs font-semibold text-primary hover:text-primary/80 hover:bg-gray-200 bg-black/10 px-2 py-1 rounded-full">
                                 {{ variation.picture || variation.previewUrl ? 'Change Picture' : 'Add Picture' }}
                             </label>
                             <Input 
@@ -491,17 +494,41 @@ defineOptions({
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger as-child>
-                    <Button type="button" class="w-full sm:w-auto cursor-pointer">
+                    <Button type="button" class="bg-green-600 hover:bg-green-700 w-full sm:w-auto cursor-pointer">
                       Update Automotive Part
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure you want to update this automotive part?</AlertDialogTitle>
+                      <AlertDialogTitle class="flex items-center gap-2">
+                          <div class="p-2 bg-yellow-100/80 text-yellow-600 border border-yellow-200 rounded-xl">
+                              <Pencil class="w-4 h-4" />
+                          </div>
+                          <div>
+                              Update
+                          </div>
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                          You are about to change the details or pricing of this part.
+                          <br/><br/>
+                          <!-- <strong>Note:</strong> These changes will only apply to future transactions. Past Job Orders will retain the original pricing and details from the time they were created. -->
+                          <div class="mt-2 rounded-lg border border-yellow-200 bg-yellow-50 p-3 ">
+                            <div class="flex flex-col gap-2 text-sm font-medium text-yellow-900">
+                                <div class="flex items-center gap-1 text-yellow-600">
+                                    <CircleAlert class="w-4 h-4"/>Note:
+                                </div>
+                                
+                                <div>
+                                    These changes will only apply to future transactions. Past Job Orders will retain the original pricing and details from the time they were created.
+                                </div>
+
+                            </div>
+                          </div> 
+                      </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel class="cursor-pointer" >Cancel</AlertDialogCancel>
-                      <AlertDialogAction class="cursor-pointer" @click="submit">Yes, Update</AlertDialogAction>
+                      <AlertDialogAction class="cursor-pointer bg-green-600 hover:bg-green-700" @click="submit">Yes, Update</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>

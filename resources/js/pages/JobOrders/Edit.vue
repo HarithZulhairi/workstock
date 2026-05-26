@@ -48,11 +48,13 @@ const props = defineProps<{
         price: number; 
         stock_quantity: number; 
         part_serial_number: string;
+        part_images?: string[];
         variations?: Array<{
             variation_id: number;
             name: string;
             price: number;
             stock_quantity: number;
+            picture?: string;
         }>;
     }>;
     partsUsed: Array<{
@@ -204,6 +206,30 @@ const getStockDisplay = (index: number) => {
     if (!row.automotive_parts_id) return '';
     
     return `(Max: ${maxStock} available)`;
+};
+
+// Get image for the selected part/variation
+const getPartImage = (index: number) => {
+    const row = form.parts_used[index];
+    if (!row.automotive_parts_id) return null;
+    
+    const part = props.parts.find(p => p.automotive_parts_id.toString() === row.automotive_parts_id);
+    if (!part) return null;
+    
+    // If variation is selected and has an image, use it
+    if (row.variation_id) {
+        const variation = part.variations?.find(v => v.variation_id.toString() === row.variation_id);
+        if (variation?.picture) {
+            return `/storage/${variation.picture}`;
+        }
+    }
+    
+    // Otherwise, use base part image if available
+    if (part.part_images && part.part_images.length > 0) {
+        return `/storage/${part.part_images[0]}`;
+    }
+    
+    return null;
 };
 
 // Calculate grand total
@@ -423,7 +449,36 @@ onMounted(() => {
                                 <Trash class="w-5 h-5" />
                             </button>
 
-                            <h4 class="font-medium text-sm text-gray-500 mb-4">Part #{{ index + 1 }}</h4>
+                            <div class="flex items-start gap-4 mb-4">
+                                <!-- Part Image -->
+                                <div class="flex-shrink-0">
+                                    <div v-if="getPartImage(index)" class="w-20 h-20 rounded-lg border-2 border-gray-200 overflow-hidden bg-white shadow-sm">
+                                        <img 
+                                            :src="getPartImage(index)!" 
+                                            :alt="row.automotive_parts_id ? props.parts.find(p => p.automotive_parts_id.toString() === row.automotive_parts_id)?.name : 'Part'" 
+                                            class="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <div v-else class="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 bg-gray-100 flex items-center justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                                            <polyline points="21 15 16 10 5 21"/>
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                <!-- Part Number Label -->
+                                <div class="flex-1">
+                                    <h4 class="font-medium text-sm text-gray-500">Part #{{ index + 1 }}</h4>
+                                    <p v-if="row.automotive_parts_id" class="text-xs text-gray-400 mt-1">
+                                        {{ props.parts.find(p => p.automotive_parts_id.toString() === row.automotive_parts_id)?.name }}
+                                        <span v-if="row.variation_id" class="text-blue-600">
+                                            • {{ props.parts.find(p => p.automotive_parts_id.toString() === row.automotive_parts_id)?.variations?.find(v => v.variation_id.toString() === row.variation_id)?.name }}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
                             
                             <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                                 <div class="md:col-span-10">

@@ -223,8 +223,8 @@ defineOptions({
     <Head title="Add Automotive Part" />
 
     <div class="my-6 px-12 flex items-start gap-4">
-      <div class="p-3 bg-primary/10 text-primary rounded-xl">
-        <PackagePlus class="w-8 h-8" />
+      <div>
+        <img src="/images/add-package.png" alt="WorkStock Logo" class="h-15 w-15" />
       </div>
       <div>
         <h1 class="text-2xl font-bold tracking-tight">Add Automotive Part</h1>
@@ -492,6 +492,9 @@ defineOptions({
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Are you sure you want to save this automotive part?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                          This will add a new part to your inventory system. Once saved, it can be assigned to new Job Orders.
+                      </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel class="cursor-pointer" >Cancel</AlertDialogCancel>

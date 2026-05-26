@@ -10,7 +10,7 @@ type Props = {
 };
 
 const props = withDefaults(defineProps<Props>(), {
-    showEmail: false,
+    showEmail: true,
 });
 
 const { getInitials } = useInitials();

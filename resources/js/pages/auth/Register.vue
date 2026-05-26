@@ -30,18 +30,18 @@ defineOptions({
     >
         <div class="grid gap-6">
             <div class="grid gap-2">
-                <Label for="full_name">Full Name</Label>
+                <Label for="name">Name</Label>
                 <Input
-                    id="full_name"
+                    id="name"
                     type="text"
                     required
                     autofocus
                     :tabindex="1"
                     autocomplete="name"
-                    name="full_name"
-                    placeholder="Full name"
+                    name="name"
+                    placeholder="Name"
                 />
-                <InputError :message="errors.full_name" />
+                <InputError :message="errors.name" />
             </div>
 
             <div class="grid gap-2">

@@ -17,9 +17,18 @@ class JobOrdersController extends Controller
         // Start query and include the relationships
         $query = JobOrders::with([
             'handler',
-            'jobOrderParts.automotivePart',
-            'jobOrderParts.variation'
+            'jobOrderParts.automotivePart' => function ($query) {
+                $query->withTrashed(); 
+            },
+            'jobOrderParts.variation' => function ($query) {
+                $query->withTrashed();
+            },
         ])->latest('job_orders_id');
+
+        $partsTrashed = AutomotiveParts::onlyTrashed()->pluck('automotive_parts_id')->toArray();
+        $partsTrashedVariations = PartVariation::onlyTrashed()->pluck('variation_id')->toArray();
+
+        $partsTrashedVariations2 = PartVariation::all();
 
         // Handle Search (checks name, phone, or plate)
         if ($request->filled('search')) {
@@ -41,7 +50,10 @@ class JobOrdersController extends Controller
 
         return Inertia::render('JobOrders/Index', [
             'jobOrders' => $jobOrders,
-            'filters' => $request->only(['search', 'status'])
+            'filters' => $request->only(['search', 'status']),
+            'partsTrashed' => $partsTrashed,
+            'partsTrashedVariations' => $partsTrashedVariations,
+            'partsTrashedVariations2' => $partsTrashedVariations2,
         ]);
     }
 
@@ -51,7 +63,7 @@ class JobOrdersController extends Controller
         $parts = AutomotiveParts::with(['variations' => function($query) {
                         $query->where('stock_quantity', '>', 0);
                     }])
-                    ->select('automotive_parts_id', 'name', 'price', 'stock_quantity', 'part_serial_number')
+                    ->select('automotive_parts_id', 'name', 'price', 'stock_quantity', 'part_serial_number', 'part_images')
                     ->where(function($query) {
                         // Include parts that either have base stock OR have variations with stock
                         $query->where('stock_quantity', '>', 0)
@@ -155,7 +167,7 @@ class JobOrdersController extends Controller
 
         // Get all available parts (including their variations)
         $parts = AutomotiveParts::with(['variations'])
-                    ->select('automotive_parts_id', 'name', 'price', 'stock_quantity', 'part_serial_number')
+                    ->select('automotive_parts_id', 'name', 'price', 'stock_quantity', 'part_serial_number', 'part_images')
                     ->where('is_visible_to_public', 1) 
                     ->get();
 
@@ -328,5 +340,18 @@ class JobOrdersController extends Controller
         }
 
         return redirect()->route('displayJobOrders')->with('success', 'Job Order updated successfully!');
+    }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $jobOrder = JobOrders::findOrFail($id);
+
+        $request->validate([
+            'status' => 'required|in:Pending,Arrived',
+        ]);
+
+        $jobOrder->update(['status' => $request->status]);
+
+        return redirect()->back()->with('success', 'Job order status updated successfully!');
     }
 }

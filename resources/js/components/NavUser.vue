@@ -25,7 +25,7 @@ const { isMobile, state } = useSidebar();
     <SidebarMenu>
         <SidebarMenuItem>
             <DropdownMenu>
-                <DropdownMenuTrigger as-child>
+                <DropdownMenuTrigger as-child class="cursor-pointer bg-gray-100 ">
                     <SidebarMenuButton
                         size="lg"
                         class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"

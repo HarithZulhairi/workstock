@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 use App\Http\Controllers\AutomotivePartsController;
 use App\Http\Controllers\JobOrdersController;
+    use App\Http\Controllers\DashboardController;
 
 Route::inertia('/', 'Welcome', [
     'canRegister' => Features::enabled(Features::registration()),
@@ -28,6 +29,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('job-orders/store', [JobOrdersController::class, 'store'])->name('storeJobOrder');
     Route::get('job-orders/edit/{id}', [JobOrdersController::class, 'edit'])->name('editJobOrder');
     Route::put('job-orders/update/{id}', [JobOrdersController::class, 'update'])->name('updateJobOrder');
+    Route::post('job-orders/update/status/{id}', [JobOrdersController::class, 'updateStatus'])->name('editStatusJobOrder');
+
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/report/download', [DashboardController::class, 'downloadReport'])->name('dashboard.report');
 });
 
 require __DIR__.'/settings.php';

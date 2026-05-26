@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('picture')->nullable(); 
             
             $table->timestamps();
+            $table->softDeletes();
 
             $table->foreign('automotive_parts_id')
                   ->references('automotive_parts_id')

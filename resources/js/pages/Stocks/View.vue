@@ -167,7 +167,7 @@ defineOptions({
                                     v-for="variation in part.variations"
                                     :key="variation.variation_id"
                                     @click="selectVariation(variation)"
-                                    class="flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 focus:outline-none"
+                                    class="flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200 focus:outline-none cursor-pointer"
                                     :class="selectedVariation && selectedVariation.variation_id === variation.variation_id 
                                         ? 'border-primary bg-primary/5 text-primary font-semibold shadow-sm' 
                                         : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'"
@@ -190,7 +190,7 @@ defineOptions({
                                     <p class="text-sm font-medium text-gray-500">Availability</p>
                                     <div class="flex items-center gap-2 mt-0.5">
                                         <div class="w-2 h-2 rounded-full" :class="displayStockQty > 5 ? 'bg-emerald-500' : (displayStockQty > 0 ? 'bg-amber-500' : 'bg-red-500')"></div>
-                                        <p class="font-semibold text-gray-900 transition-all duration-200">
+                                        <p class="font-semibold transition-all duration-200" :class="displayStockQty > 5 ? 'text-emerald-700' : (displayStockQty > 0 ? 'text-amber-700' : 'text-red-700')">
                                             {{ displayStockQty > 0 ? `${displayStockQty} Units in Stock` : 'Out of Stock' }}
                                         </p>
                                     </div>

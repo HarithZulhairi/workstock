@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
+// import AppLogoIcon from '@/components/AppLogoIcon.vue';
 </script>
 
 <template>
-    <div
-        class="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground"
-    >
-        <AppLogoIcon class="size-5 fill-current text-white dark:text-black" />
+    <div>
+        <img src="/images/workstock-icon-sidebar.png" alt="WorkStock Logo" class="h-13 w-13" />
     </div>
-    <div class="ml-1 grid flex-1 text-left text-sm">
+    <!-- <AppLogoIcon class="size-16" /> -->
+    <div class="grid flex-1 text-left text-sm">
         <span class="mb-0.5 truncate leading-tight font-semibold"
             >WorkStock</span
         >

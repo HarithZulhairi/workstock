@@ -39,11 +39,24 @@ import {
 
 import {
     Dialog,
+    DialogClose,
     DialogContent,
+    DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogDescription,
-} from '@/components/ui/dialog';
+    DialogTrigger,
+} from '@/components/ui/dialog'
+
+import {
+    Field,
+    FieldDescription,
+    FieldGroup,
+    FieldLabel,
+    FieldLegend,
+    FieldSeparator,
+    FieldSet,
+} from '@/components/ui/field';
 
 import {
     Table,
@@ -55,29 +68,54 @@ import {
 } from '@/components/ui/table';
 
 // Import your route helpers (adjust these if your route names differ)
-import { createJobOrder, displayJobOrders, editJobOrder } from '@/routes';
+import { createJobOrder, displayJobOrders, editJobOrder, editStatusJobOrder } from '@/routes';
 
 const props = defineProps({
     jobOrders: { type: Object, required: true },
     filters: { type: Object, default: () => ({}) },
+    partsTrashed: { type: Array, default: () => [] },
+    partsTrashedVariations: { type: Array, default: () => [] },
+    partsTrashedVariations2: { type: Array, default: () => [] },
 });
 
 // Use Inertia's usePage to access globally shared flash messages
 const page = usePage();
 
+const showSuccessToast = ref(false);
+const toastMessage = ref('');
 const successMessage = computed(() => page.props.flash?.success);
 const errorMessage = computed(() => page.props.flash?.error);
 
+const isPreviewOpen = ref(false);
+const previewImageUrl = ref('');
+
+// View Modal State
+const viewModalOpen = ref(false);
+const selectedOrder = ref<any>(null);
+
+// Status Edit Modal State
+const selectedOrderForStatus = ref<any>(null);
+const newStatus = ref('');
+
+
+
+const openStatusModal = (order: any) => {
+    selectedOrderForStatus.value = order;
+    newStatus.value = order.status; // Set current status as default
+};
+
 watch(successMessage, (newVal) => {
     if (newVal) {
-        toast.success(newVal, {
-            duration: 4000,
-        });
+        toastMessage.value = newVal;
+        showSuccessToast.value = true;
+        
+        // Clear the global Inertia state so it doesn't fire again on navigation
+        page.props.flash.success = null; 
+
+        // Auto-hide the toast after 3 seconds
         setTimeout(() => {
-            if (page.props.flash) {
-                page.props.flash.success = null;
-            }
-        }, 100);
+            showSuccessToast.value = false;
+        }, 3000);
     }
 }, { immediate: true });
 
@@ -132,10 +170,16 @@ const handlePageChange = (pageNumber: number) => {
 
 const statusColor = (status: string) => {
     switch(status) {
+        // Old status
         case 'Completed': return 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100/80';
         case 'Fixing in Progress': return 'bg-blue-100 text-blue-700 hover:bg-blue-100/80';
         case 'Waiting for Orders': return 'bg-purple-100 text-purple-700 hover:bg-purple-100/80';
         case 'Not Started Yet': return 'bg-amber-100 text-amber-700 hover:bg-amber-100/80';
+
+        // New Status
+        case 'Pending': return 'bg-amber-100 text-amber-700 hover:bg-amber-100/80';
+        case 'Arrived': return 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100/80';
+        
         default: return 'bg-gray-100 text-gray-700 hover:bg-gray-100/80';
     }
 };
@@ -147,9 +191,6 @@ const getVehicleImage = (order: any) => {
     return undefined;
 };
 
-// View Modal State
-const viewModalOpen = ref(false);
-const selectedOrder = ref<any>(null);
 
 const openViewModal = (order: any) => {
     selectedOrder.value = order;
@@ -195,6 +236,23 @@ const getPartImage = (part: any) => {
     return undefined;
 };
 
+const openPreview = (url: string) => {
+    previewImageUrl.value = url;
+    isPreviewOpen.value = true;
+};
+
+const submitStatusUpdate = (orderId: number | string) => {
+    router.post(editStatusJobOrder(orderId).url, {
+        status: newStatus.value,
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            selectedOrderForStatus.value = null;
+        },
+    });
+};
+
+
 defineOptions({ 
     layout: { breadcrumbs: 
         [ 
@@ -212,8 +270,8 @@ defineOptions({
 
     <div class="my-6 px-12 max-w-7xl flex items-start justify-between gap-4">
       <div class="flex items-center gap-4">
-          <div class="p-3 bg-blue-500/10 text-blue-600 rounded-xl shadow-sm border border-blue-500/20">
-            <ClipboardSignature class="w-7 h-7" />
+          <div>
+            <img src="/images/checklist.png" alt="WorkStock Logo" class="h-12 w-12" />
           </div>
           <div>
             <h1 class="text-2xl font-bold tracking-tight text-gray-900">Job Orders Dashboard</h1>
@@ -238,6 +296,34 @@ defineOptions({
             }
         }"
     />
+
+    <Transition
+        enter-active-class="transform ease-out duration-300 transition"
+        enter-from-class="-translate-y-4 opacity-0 scale-95"
+        enter-to-class="translate-y-0 opacity-100 scale-100"
+        leave-active-class="transition ease-in duration-200"
+        leave-from-class="opacity-100 scale-100"
+        leave-to-class="-translate-y-4 opacity-0 scale-95"
+    >
+        <div 
+            v-if="showSuccessToast" 
+            class="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 p-4 w-full min-w-[300px] max-w-sm rounded-xl shadow-lg border bg-emerald-50 border-emerald-200 text-emerald-900"
+        >
+            <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            
+            <p class="font-medium text-sm flex-1">{{ toastMessage }}</p>
+            
+            <button @click="showSuccessToast = false" class="text-emerald-500 hover:text-emerald-700 transition-colors focus:outline-none">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+    </Transition>
 
     <div class="pb-12 pt-4 px-4">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -276,12 +362,14 @@ defineOptions({
                     <CardContent class="p-0">
                         <div class="flex flex-col md:flex-row">
                             <!-- Vehicle Image Section -->
-                            <div class="md:w-48 h-48 md:h-auto bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center relative overflow-hidden">
+                            <div class="md:w-48 h-48 md:h-auto bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center relative overflow-hidden"
+                                @click="getVehicleImage(order) && openPreview(getVehicleImage(order))"
+                                :class="getVehicleImage(order) ? 'cursor-pointer' : ''">
                                 <img 
                                     v-if="getVehicleImage(order)" 
                                     :src="getVehicleImage(order)" 
                                     :alt="`${order.vehicle_brand} ${order.vehicle_model}`"
-                                    class="w-full h-full object-cover"
+                                    class="w-full h-full object-cover transition-transform hover:scale-110"
                                 />
                                 <div v-else class="flex flex-col items-center justify-center text-blue-400">
                                     <CarFront class="w-16 h-16 mb-2" />
@@ -324,6 +412,10 @@ defineOptions({
                                         <Phone class="w-4 h-4 text-gray-400" />
                                         <span class="text-gray-600">{{ order.customer_phone_num }}</span>
                                     </div>
+                                    <div class="flex items-center gap-1.5 mt-3">
+                                        <Wrench class="w-4 h-4 text-gray-400" />
+                                        <span class="text-xs text-gray-600">{{ order.handler?.name || 'N/A' }}</span>
+                                    </div>
                                 </div>
 
                                 <!-- Issue Description -->
@@ -338,17 +430,13 @@ defineOptions({
                                 <div class="flex items-center justify-between pt-3 border-t border-gray-100">
                                     <div class="flex items-center gap-4">
                                         <div class="flex items-center gap-1.5">
-                                            <Wrench class="w-4 h-4 text-gray-400" />
-                                            <span class="text-xs text-gray-600">{{ order.handler?.full_name || 'N/A' }}</span>
-                                        </div>
-                                        <div class="flex items-center gap-1.5">
-                                            <DollarSign class="w-4 h-4 text-emerald-600" />
-                                            <span class="text-sm font-bold text-emerald-700">RM {{ Number(order.total_cost).toFixed(2) }}</span>
+                                            <span class="text-xl font-bold">RM {{ Number(order.total_cost).toFixed(2) }}</span>
                                         </div>
                                     </div>
 
                                     <!-- Action Buttons -->
                                     <div class="flex items-center gap-1">
+                                        
                                         <Button 
                                             variant="ghost" 
                                             size="icon" 
@@ -359,11 +447,61 @@ defineOptions({
                                             <Eye class="w-4 h-4" />
                                         </Button>
                                         
-                                        <Button variant="ghost" size="icon" title="Edit Order" class="h-8 w-8 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50" as-child>
+                                        <!-- Change status here -->
+                                        <!-- <Button variant="ghost" size="icon" title="Edit Order" class="h-8 w-8 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50" as-child>
                                             <Link :href="editJobOrder(order.job_orders_id).url">
                                                 <Pencil class="w-4 h-4" />
-                                            </Link>
-                                        </Button>
+                                            </Link>    
+                                        </Button> -->
+
+                                        <Dialog>
+                                            <DialogTrigger as-child>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    title="Adjust Status" 
+                                                    class="h-8 w-8 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 cursor-pointer"
+                                                    @click="openStatusModal(order)"
+                                                >
+                                                    <Pencil class="w-4 h-4" />
+                                                </Button>
+                                            </DialogTrigger>
+
+                                            <DialogContent class="sm:max-w-sm text-left">
+                                                <form @submit.prevent="submitStatusUpdate(selectedOrderForStatus?.job_orders_id)">
+                                                    <DialogHeader class="mb-6">
+                                                        <DialogTitle>Edit Order Status</DialogTitle>
+                                                        <DialogDescription>
+                                                            Edit the status of this order
+                                                        </DialogDescription>
+                                                    </DialogHeader>
+                                                
+                                                    <Field>
+                                                        <FieldLabel for="status">Status <span class="text-red-500">*</span></FieldLabel>
+                                                        <Select v-model="newStatus">
+                                                            <SelectTrigger id="status" class="cursor-pointer">
+                                                                <SelectValue placeholder="Select status" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="Pending">Pending</SelectItem>
+                                                                <SelectItem value="Arrived">Arrived</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </Field>
+                                                    
+                                                    <DialogFooter class="mt-7">
+                                                        <DialogClose as-child>
+                                                            <Button class="cursor-pointer" type="button" variant="outline">Cancel</Button>
+                                                        </DialogClose>
+                                                        <DialogClose as-child>
+                                                            <Button class="cursor-pointer" type="submit">
+                                                                Save changes
+                                                            </Button>
+                                                        </DialogClose>
+                                                    </DialogFooter>
+                                                </form>
+                                            </DialogContent>
+                                        </Dialog>
 
                                         <AlertDialog>
                                             <AlertDialogTrigger as-child>
@@ -458,7 +596,7 @@ defineOptions({
 
     <!-- View Job Order Modal -->
     <Dialog :open="viewModalOpen" @update:open="handleModalOpenChange">
-        <DialogContent class="max-w-6xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent class="max-h-[85vh] overflow-hidden flex flex-col">
             <DialogHeader class="flex-shrink-0">
                 <DialogTitle class="flex items-center gap-3 text-xl">
                     <div class="p-2 bg-blue-500/10 text-blue-600 rounded-lg">
@@ -491,11 +629,13 @@ defineOptions({
                         </h3>
                         
                         <!-- Vehicle Image -->
-                        <div v-if="getVehicleImage(selectedOrder)" class="mb-3">
+                        <div v-if="getVehicleImage(selectedOrder)" class="mb-3"
+                            @click="getVehicleImage(selectedOrder) && openPreview(getVehicleImage(selectedOrder))"
+                            :class="getVehicleImage(selectedOrder) ? 'cursor-pointer' : ''">
                             <img 
                                 :src="getVehicleImage(selectedOrder)" 
                                 :alt="`${selectedOrder.vehicle_brand} ${selectedOrder.vehicle_model}`"
-                                class="w-full h-40 object-cover rounded-lg border-2 border-white shadow-sm"
+                                class="w-full h-40 object-cover rounded-lg border-2 border-white shadow-sm transition-transform hover:scale-105"
                             />
                         </div>
 
@@ -551,7 +691,7 @@ defineOptions({
                                 </div>
                                 <div>
                                     <p class="text-xs text-gray-500">Handled By</p>
-                                    <p class="text-sm font-semibold text-gray-900">{{ selectedOrder.handler?.full_name || 'N/A' }}</p>
+                                    <p class="text-sm font-semibold text-gray-900">{{ selectedOrder.handler?.name || 'N/A' }}</p>
                                 </div>
                             </div>
                         </div>
@@ -585,12 +725,14 @@ defineOptions({
                             class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border hover:bg-gray-100 transition-colors"
                         >
                             <!-- Part Image -->
-                            <div class="w-16 h-16 flex-shrink-0 bg-white rounded-lg border overflow-hidden">
+                            <div class="w-16 h-16 flex-shrink-0 bg-white rounded-lg border overflow-hidden"
+                                @click="getPartImage(part) && openPreview(getPartImage(part))"
+                                :class="getPartImage(part) ? 'cursor-pointer' : ''">
                                 <img 
                                     v-if="getPartImage(part)"
                                     :src="getPartImage(part)"
                                     :alt="part.automotive_part?.name"
-                                    class="w-full h-full object-cover"
+                                    class="w-full h-full object-cover transition-transform hover:scale-110 cursor-pointer"
                                 />
                                 <div v-else class="w-full h-full flex items-center justify-center bg-gray-100">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -651,13 +793,26 @@ defineOptions({
                 <Button class="cursor-pointer" variant="outline" @click="closeViewModal">
                     Close
                 </Button>
-                <Button variant="default" as-child>
-                    <Link :href="editJobOrder(selectedOrder.job_orders_id).url">
-                        <Pencil class="w-4 h-4 mr-2" />
-                        Edit Job Order
-                    </Link>
-                </Button>
             </div>
         </DialogContent>
     </Dialog>
+
+    
+    <!-- Image Preview Modal -->
+    <Dialog v-model:open="isPreviewOpen">
+        <DialogContent :show-close-button="false"
+            class="max-w-4xl p-0 overflow-hidden border-none bg-transparent shadow-none flex items-center justify-center sm:max-w-[90vw]">
+            <div class="relative w-full h-full flex items-center justify-center p-4">
+                <img :src="previewImageUrl"
+                    class="max-h-[90vh] w-auto rounded-lg shadow-2xl object-contain bg-white/10 backdrop-blur-sm" />
+
+                <!-- Highly Visible Close Button -->
+                <button @click="isPreviewOpen = false"
+                    class="absolute top-8 right-8 z-[60] flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-2xl ring-4 ring-black/10 transition-all hover:scale-110 active:scale-95 cursor-pointer">
+                    <Plus class="h-6 w-6 rotate-45 text-black" />
+                </button>
+            </div>
+        </DialogContent>
+    </Dialog>
+
 </template>

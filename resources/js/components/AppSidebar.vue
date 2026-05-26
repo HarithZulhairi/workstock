@@ -24,24 +24,14 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
-        title: 'Display Stock',
+        title: 'Inventory',
         href: displayStock(),
         icon: Warehouse,
     },
     {
-        title: 'Add Stock',
-        href: createStock(),
-        icon: PackagePlus,
-    },
-    {
-        title: 'Display Job Orders',
+        title: 'Job Orders',
         href: displayJobOrders(),
         icon: Briefcase,
-    },
-    {
-        title: 'Add Job Order',
-        href: createJobOrder(),
-        icon: BriefcaseMedical,
     },
     
 ];
