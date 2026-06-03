@@ -173,7 +173,7 @@ defineOptions({
     layout: { breadcrumbs: 
         [ 
             { 
-                title: 'Display Stock', 
+                title: 'Stock Inventory', 
                 href: displayStock() 
             } 
         ] 

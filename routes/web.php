@@ -30,6 +30,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('job-orders/edit/{id}', [JobOrdersController::class, 'edit'])->name('editJobOrder');
     Route::put('job-orders/update/{id}', [JobOrdersController::class, 'update'])->name('updateJobOrder');
     Route::post('job-orders/update/status/{id}', [JobOrdersController::class, 'updateStatus'])->name('editStatusJobOrder');
+    Route::post('job-orders/delete/{id}', [JobOrdersController::class, 'destroy'])->name('destroyJobOrder');
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/report/download', [DashboardController::class, 'downloadReport'])->name('dashboard.report');

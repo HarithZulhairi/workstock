@@ -227,7 +227,7 @@ const submit = () => {
 defineOptions({
     layout: {
         breadcrumbs: [
-            { title: 'Display Stock', href: displayStock() },
+            { title: 'Stock Inventory', href: displayStock() },
             { title: 'Edit Stock', href: '#' },
         ],
     },
@@ -505,7 +505,7 @@ defineOptions({
                               <Pencil class="w-4 h-4" />
                           </div>
                           <div>
-                              Update
+                              Update {{ form.name || 'this part' }}?
                           </div>
                       </AlertDialogTitle>
                       <AlertDialogDescription>

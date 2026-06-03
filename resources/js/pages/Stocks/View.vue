@@ -77,7 +77,7 @@ const selectVariation = (variation: any) => {
 defineOptions({
     layout: {
         breadcrumbs: [
-            { title: 'Display Stock', href: displayStock() },
+            { title: 'Stock Inventory', href: displayStock() },
             { title: 'View Part', href: '#' },
         ],
     },

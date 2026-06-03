@@ -3,7 +3,7 @@ import { ref, watch, computed } from 'vue';
 import { toast } from 'vue-sonner';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import debounce from 'lodash/debounce'; 
-import { ClipboardSignature, Pencil, Trash, Search, FilterX, Plus, Eye, CarFront, User as UserIcon, Phone, Wrench, DollarSign, Calendar } from 'lucide-vue-next';
+import { ClipboardSignature, Pencil, Trash, Search, FilterX, Plus, Eye, User as UserIcon, Phone, Wrench, DollarSign, CarFront, CircleAlert, ArchiveRestore } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge'; 
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
@@ -68,7 +68,7 @@ import {
 } from '@/components/ui/table';
 
 // Import your route helpers (adjust these if your route names differ)
-import { createJobOrder, displayJobOrders, editJobOrder, editStatusJobOrder } from '@/routes';
+import { createJobOrder, displayJobOrders, editStatusJobOrder, destroyJobOrder } from '@/routes';
 
 const props = defineProps({
     jobOrders: { type: Object, required: true },
@@ -161,12 +161,12 @@ const handlePageChange = (pageNumber: number) => {
     });
 };
 
-// const deleteJobOrder = (id: number) => {
-//     // Replace with your actual delete route
-//     router.delete(route('job-orders.destroy', id), {
-//         preserveScroll: true,
-//     });
-// };
+const deleteJobOrder = (id: number) => {
+    // Assuming your route is /job-orders/{id}
+    router.post(destroyJobOrder(id), {
+        preserveScroll: true,
+    });
+};
 
 const statusColor = (status: string) => {
     switch(status) {
@@ -279,8 +279,8 @@ defineOptions({
           </div>
       </div>
       
-      <Button as-child class="shadow-sm">
-        <Link :href="createJobOrder().url"><Plus class="w-4 h-4 mr-2"/> New Job Order</Link>
+      <Button as-child class="shadow-sm bg-green-600 hover:bg-green-700 text-white">
+        <Link :href="createJobOrder().url"><Plus class="w-4 h-4"/>New Job Order</Link>
       </Button>
     </div>
 
@@ -339,10 +339,8 @@ defineOptions({
                             <SelectTrigger class="bg-white w-[220px]"><SelectValue placeholder="Status" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Statuses</SelectItem>
-                                <SelectItem value="Not Started Yet">Not Started Yet</SelectItem>
-                                <SelectItem value="Fixing in Progress">Fixing in Progress</SelectItem>
-                                <SelectItem value="Waiting for Orders">Waiting for Orders</SelectItem>
-                                <SelectItem value="Completed">Completed</SelectItem>
+                                <SelectItem value="Pending">Pending</SelectItem>
+                                <SelectItem value="Arrived">Arrived</SelectItem>
                             </SelectContent>
                         </Select>
                         <Button variant="outline" @click="clearFilters" class="text-gray-500 gap-2">
@@ -416,6 +414,11 @@ defineOptions({
                                         <Wrench class="w-4 h-4 text-gray-400" />
                                         <span class="text-xs text-gray-600">{{ order.handler?.name || 'N/A' }}</span>
                                     </div>
+                                    <div class="flex items-center gap-1.5 mt-3">
+                                        <ArchiveRestore class="w-4 h-4 text-gray-400" />
+                                        <span v-if="order.status == 'Arrived'" class="text-xs text-gray-600">{{ formatDate(order.updated_at) || 'N/A' }}</span>
+                                        <span v-else class="text-xs text-gray-600">Not arrived yet</span>
+                                    </div>
                                 </div>
 
                                 <!-- Issue Description -->
@@ -435,34 +438,14 @@ defineOptions({
                                     </div>
 
                                     <!-- Action Buttons -->
-                                    <div class="flex items-center gap-1">
-                                        
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            title="View Order" 
-                                            class="h-8 w-8 text-gray-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
-                                            @click="openViewModal(order)"
-                                        >
+                                    <div class="flex items-center justify-end gap-2">
+                                        <Button variant="ghost" size="icon" title="View Order" class="h-8 w-8 text-gray-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer" @click="openViewModal(order)">
                                             <Eye class="w-4 h-4" />
                                         </Button>
                                         
-                                        <!-- Change status here -->
-                                        <!-- <Button variant="ghost" size="icon" title="Edit Order" class="h-8 w-8 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50" as-child>
-                                            <Link :href="editJobOrder(order.job_orders_id).url">
-                                                <Pencil class="w-4 h-4" />
-                                            </Link>    
-                                        </Button> -->
-
-                                        <Dialog>
+                                        <Dialog v-if="order.status === 'Pending'">
                                             <DialogTrigger as-child>
-                                                <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    title="Adjust Status" 
-                                                    class="h-8 w-8 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 cursor-pointer"
-                                                    @click="openStatusModal(order)"
-                                                >
+                                                <Button variant="ghost" size="icon" title="Adjust Status" class="h-8 w-8 text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 cursor-pointer" @click="openStatusModal(order)">
                                                     <Pencil class="w-4 h-4" />
                                                 </Button>
                                             </DialogTrigger>
@@ -470,12 +453,17 @@ defineOptions({
                                             <DialogContent class="sm:max-w-sm text-left">
                                                 <form @submit.prevent="submitStatusUpdate(selectedOrderForStatus?.job_orders_id)">
                                                     <DialogHeader class="mb-6">
-                                                        <DialogTitle>Edit Order Status</DialogTitle>
+                                                        <DialogTitle class="flex items-center gap-2">
+                                                            <div class="p-2 bg-yellow-100/80 text-yellow-600 border border-yellow-200 rounded-xl">
+                                                                <Pencil class="w-4 h-4" />
+                                                            </div>
+                                                            <div>Edit Order Status</div>
+                                                        </DialogTitle>
                                                         <DialogDescription>
-                                                            Edit the status of this order
+                                                            Update the current progression of this job order.
                                                         </DialogDescription>
                                                     </DialogHeader>
-                                                
+                                                    
                                                     <Field>
                                                         <FieldLabel for="status">Status <span class="text-red-500">*</span></FieldLabel>
                                                         <Select v-model="newStatus">
@@ -488,13 +476,20 @@ defineOptions({
                                                             </SelectContent>
                                                         </Select>
                                                     </Field>
+
+                                                    <div v-if="newStatus === 'Arrived'" class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+                                                        <CircleAlert class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                                                        <div class="text-sm text-amber-800">
+                                                            <strong>Warning:</strong> Changing the status to "Arrived" is permanent. You will not be able to revert the status or delete this job order afterwards.
+                                                        </div>
+                                                    </div>
                                                     
                                                     <DialogFooter class="mt-7">
                                                         <DialogClose as-child>
                                                             <Button class="cursor-pointer" type="button" variant="outline">Cancel</Button>
                                                         </DialogClose>
                                                         <DialogClose as-child>
-                                                            <Button class="cursor-pointer" type="submit">
+                                                            <Button class="cursor-pointer bg-green-600 hover:bg-green-700 text-white" type="submit">
                                                                 Save changes
                                                             </Button>
                                                         </DialogClose>
@@ -503,7 +498,7 @@ defineOptions({
                                             </DialogContent>
                                         </Dialog>
 
-                                        <AlertDialog>
+                                        <AlertDialog v-if="order.status === 'Pending'">
                                             <AlertDialogTrigger as-child>
                                                 <Button variant="ghost" size="icon" title="Delete Order" class="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50 cursor-pointer" >
                                                     <Trash class="w-4 h-4" />
@@ -511,11 +506,28 @@ defineOptions({
                                             </AlertDialogTrigger>
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
-                                                    <AlertDialogTitle>Delete Job Order for {{ order.vehicle_plate }}?</AlertDialogTitle>
+                                                    <AlertDialogTitle class="flex items-center gap-2">
+                                                        <div class="p-2 bg-red-100/80 text-red-600 border border-red-200 rounded-xl">
+                                                            <Trash class="w-4 h-4" />
+                                                        </div>
+                                                        <div>
+                                                            Delete Job Order for {{ order.vehicle_plate }}?
+                                                        </div>
+                                                    </AlertDialogTitle>
                                                 </AlertDialogHeader>
-                                                <AlertDialogFooter>
+                                                <div class="mt-2 rounded-lg border border-red-200 bg-red-50 p-3">
+                                                    <div class="flex flex-col gap-2 text-sm text-red-900 leading-relaxed">
+                                                        <div class="flex items-center gap-1 text-red-600 font-bold">
+                                                            <CircleAlert class="w-4 h-4"/>Note:
+                                                        </div>
+                                                        <div>
+                                                            Deleting this pending job order will cancel the service and <strong>return all reserved parts back into your inventory</strong>. This action cannot be undone.
+                                                        </div>
+                                                    </div>
+                                                </div> 
+                                                <AlertDialogFooter class="mt-4">
                                                     <AlertDialogCancel class="cursor-pointer">Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction class="cursor-pointer" @click="deleteJobOrder(order.job_orders_id)">Yes, Delete</AlertDialogAction>
+                                                    <AlertDialogAction class="cursor-pointer bg-red-600 hover:bg-red-700 focus:ring-red-600" @click="deleteJobOrder(order.job_orders_id)">Yes, Delete</AlertDialogAction>
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>
@@ -676,8 +688,8 @@ defineOptions({
                             </div>
 
                             <div class="flex items-center gap-2 bg-white p-3 rounded-lg border">
-                                <div class="p-1.5 bg-emerald-100 rounded">
-                                    <Phone class="w-4 h-4 text-emerald-600" />
+                                <div class="p-1.5 bg-gray-100 rounded">
+                                    <Phone class="w-4 h-4 text-gray-600" />
                                 </div>
                                 <div>
                                     <p class="text-xs text-gray-500">Phone Number</p>
@@ -692,6 +704,16 @@ defineOptions({
                                 <div>
                                     <p class="text-xs text-gray-500">Handled By</p>
                                     <p class="text-sm font-semibold text-gray-900">{{ selectedOrder.handler?.name || 'N/A' }}</p>
+                                </div>
+                            </div>
+                            
+                            <div v-if="selectedOrder.status == 'Arrived'" class="flex items-center gap-2 bg-white p-3 rounded-lg border">
+                                <div class="p-1.5 bg-emerald-100 rounded">
+                                    <ArchiveRestore class="w-4 h-4 text-emerald-600" />
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500">Arrival Date & Time</p>
+                                    <p class="text-sm font-semibold text-gray-900">{{ formatDate(selectedOrder.updated_at) || 'N/A' }}</p>
                                 </div>
                             </div>
                         </div>

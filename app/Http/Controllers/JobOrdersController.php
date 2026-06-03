@@ -346,6 +346,11 @@ class JobOrdersController extends Controller
     {
         $jobOrder = JobOrders::findOrFail($id);
 
+        // Security check: Prevent changing from Arrived back to Pending
+        if ($jobOrder->status === 'Arrived') {
+            return redirect()->back()->withErrors(['error' => 'This job order has already arrived and its status cannot be changed.']);
+        }
+
         $request->validate([
             'status' => 'required|in:Pending,Arrived',
         ]);
@@ -353,5 +358,38 @@ class JobOrdersController extends Controller
         $jobOrder->update(['status' => $request->status]);
 
         return redirect()->back()->with('success', 'Job order status updated successfully!');
+    }
+
+    public function destroy($id)
+    {
+        $jobOrder = JobOrders::with('jobOrderParts')->findOrFail($id);
+        
+        // Security check: Only allow deletion if Pending
+        if ($jobOrder->status !== 'Pending') {
+            return redirect()->back()->withErrors(['error' => 'Only Pending job orders can be deleted.']);
+        }
+
+        // Return reserved stock back to the inventory
+        foreach ($jobOrder->jobOrderParts as $part) {
+            if ($part->variation_id) {
+                // Return variation stock
+                $variation = PartVariation::find($part->variation_id);
+                if ($variation) {
+                    $variation->increment('stock_quantity', $part->quantity_used);
+                }
+            } else {
+                // Return base part stock
+                $automotivePart = AutomotiveParts::find($part->automotive_parts_id);
+                if ($automotivePart) {
+                    $automotivePart->increment('stock_quantity', $part->quantity_used);
+                }
+            }
+        }
+        
+        // Delete the parts records and the job order
+        $jobOrder->jobOrderParts()->delete();
+        $jobOrder->delete();
+
+        return redirect()->back()->with('success', 'Job order deleted and reserved parts returned to inventory.');
     }
 }

@@ -56,12 +56,16 @@ const getStatusBarColor = (label: string) => {
 <template>
     <Head title="Dashboard" />
 
-    <div class="flex flex-col gap-8 p-6 lg:p-10 max-w-7xl mx-auto w-full">
+    <div class="flex flex-col gap-10 my-6 px-12 max-w-7xl  w-full">
         
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-                <h1 class="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">Workspace Overview</h1>
-                <p class="text-sm text-gray-500 mt-1">Monitor your daily operations, inventory health, and job progress.</p>
+            
+            <div class="flex items-center gap-4">
+                <img src="/images/dashboard-ws.png" alt="WorkStock Logo" class="h-12 w-12" />
+                <div>
+                    <h1 class="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white">Workspace Overview</h1>
+                    <p class="text-sm text-gray-500 mt-1">Monitor company's daily operations, inventory health, and job progress.</p>
+                </div>
             </div>
             <a 
                 href="/dashboard/report/download" 

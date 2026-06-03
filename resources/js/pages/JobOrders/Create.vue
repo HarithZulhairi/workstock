@@ -210,6 +210,21 @@ const onPartSelect = (index: number) => {
     }
 };
 
+// Check if the form is ready to be submitted
+const isSubmitDisabled = computed(() => {
+    // Disable if there are no parts added
+    if (form.parts_used.length === 0) return true;
+    
+    // Disable if there are any stock validation errors
+    if (hasStockErrors.value) return true;
+    
+    // Disable if the user added a row, but hasn't actually selected a part from the dropdown yet
+    if (form.parts_used.some(row => !row.automotive_parts_id)) return true;
+
+    // Otherwise, enable the button!
+    return false;
+});
+
 // Auto-fill price when a variation is selected
 const onVariationSelect = (index: number) => {
     const row = form.parts_used[index];
@@ -332,6 +347,21 @@ const removeVehiclePicture = () => {
 const submit = () => {
     form.post(storeJobOrder().url); 
 };
+
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            {
+                title: 'Job Orders',
+                href: displayJobOrders(),
+            },
+            {
+                title: 'Create Job Order',
+                href: '#',
+            }
+        ],
+    },
+});
 </script>
 
 <template>
@@ -543,7 +573,7 @@ const submit = () => {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div :class="row.automotive_parts_id && getVariationsForPart(row.automotive_parts_id).length > 0 ? 'md:col-span-2' : 'md:col-span-3'">
+                                <div :class="row.automotive_parts_id && getVariationsForPart(row.automotive_parts_id, index).length > 0 ? 'md:col-span-2' : 'md:col-span-3'">
                                     <FieldLabel>Unit Price (RM)</FieldLabel>
                                     <Input :value="row.unit_price.toFixed(2)" type="text" class="bg-gray-100" readonly />
                                 </div>
@@ -608,19 +638,31 @@ const submit = () => {
                         <AlertDialogTrigger as-child>
                             <Button 
                                 type="button" 
-                                class="w-full sm:w-auto cursor-pointer gap-2"
-                                :disabled="hasStockErrors || form.parts_used.length === 0"
+                                :class="[
+                                    'w-full sm:w-auto gap-2 bg-green-600 text-white transition-colors',
+                                    isSubmitDisabled
+                                        ? 'cursor-not-allowed opacity-50 pointer-events-auto hover:bg-green-600'
+                                        : 'cursor-pointer hover:bg-green-700'
+                                ]"
+                                :disabled="isSubmitDisabled"
                             >
                                 <CheckCircle class="w-4 h-4" /> Save Job Order
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>Create Job Order?</AlertDialogTitle>
+                                <AlertDialogTitle class="flex items-center gap-2">
+                                    <div class="p-2 bg-emerald-100/80 text-emerald-600 border border-emerald-200 rounded-xl">
+                                        <Plus class="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        Create this Job Order?
+                                    </div>
+                                </AlertDialogTitle>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel class="cursor-pointer">Cancel</AlertDialogCancel>
-                                <AlertDialogAction class="cursor-pointer" @click="submit">Yes, Create</AlertDialogAction>
+                                <AlertDialogAction class="cursor-pointer bg-green-600 hover:bg-green-700 text-white" @click="submit">Yes, Create</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>

@@ -211,9 +211,13 @@ defineOptions({
     layout: {
         breadcrumbs: [
             {
+                title: 'Stock Inventory',
+                href: displayStock(),
+            },
+            {
                 title: 'Create Stock',
                 href: createStock(),
-            },
+            }
         ],
     },
 });
@@ -485,7 +489,7 @@ defineOptions({
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger as-child>
-                    <Button type="button" class="w-full sm:w-auto cursor-pointer">
+                    <Button type="button" class="w-full sm:w-auto bg-green-600 text-white hover:bg-green-700 cursor-pointer">
                       Save Automotive Part
                     </Button>
                   </AlertDialogTrigger>
@@ -498,7 +502,7 @@ defineOptions({
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel class="cursor-pointer" >Cancel</AlertDialogCancel>
-                      <AlertDialogAction class="cursor-pointer" @click="submit">Yes</AlertDialogAction>
+                      <AlertDialogAction class="cursor-pointer bg-green-600 text-white hover:bg-green-700" @click="submit">Yes</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
