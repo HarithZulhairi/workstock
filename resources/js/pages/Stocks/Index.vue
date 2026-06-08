@@ -75,6 +75,8 @@ const props = defineProps({
     filters: { type: Object, default: () => ({}) }, // Receive active filters
 });
 
+console.log('Initial Filters from Props:', props.parts.data);
+
 // Use Inertia's usePage to access globally shared flash messages
 const page = usePage();
 

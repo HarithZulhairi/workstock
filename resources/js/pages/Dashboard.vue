@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { ref, watch, computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
-import { dashboard, createStock, createJobOrder } from '@/routes';
+import { dashboard, createStock, createJobOrder, displayJobOrders } from '@/routes';
 import { 
     Warehouse, 
     Briefcase, 
@@ -20,11 +21,25 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog'
+
+
 const props = defineProps({
     stats: Object,
     recentOrders: Array,
     charts: Object
 });
+
+console.log('Dashboard Stats:', props.stats?.category?.name); // Debug log to check low stock items data
 
 defineOptions({
     layout: {
@@ -36,6 +51,9 @@ defineOptions({
         ],
     },
 });
+
+
+const isLowStockPreviewOpen = ref(false);
 
 // Helper for status colors
 const getStatusColor = (status: string) => {
@@ -51,6 +69,11 @@ const getStatusBarColor = (label: string) => {
         default: return 'bg-amber-500';
     }
 };
+
+const openLowStockPreview = () => {
+    isLowStockPreviewOpen.value = true;
+};
+
 </script>
 
 <template>
@@ -114,7 +137,7 @@ const getStatusBarColor = (label: string) => {
                 </CardContent>
             </Card>
 
-            <Card class="relative overflow-hidden group border-red-100 shadow-sm">
+            <Card class="relative overflow-hidden group border-red-100 hover:border-red-300 transition-colors shadow-sm cursor-pointer" @click="openLowStockPreview()">
                 <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                     <AlertTriangle class="w-24 h-24 text-red-600 -mr-6 -mt-6 transform rotate-12" />
                 </div>
@@ -136,8 +159,8 @@ const getStatusBarColor = (label: string) => {
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card class="flex flex-col py-5 shadow-sm border-gray-100">
                 <CardHeader>
-                    <CardTitle class="text-lg font-bold text-gray-900">Job Orders Pipeline</CardTitle>
-                    <CardDescription>Current distribution of all tracked jobs.</CardDescription>
+                    <CardTitle class="text-lg font-bold text-gray-900">Job Orders Status Pipeline</CardTitle>
+                    <CardDescription>Current status distribution of all tracked jobs.</CardDescription>
                 </CardHeader>
                 <CardContent class="flex-1 flex flex-col mt-2">
                     
@@ -232,7 +255,7 @@ const getStatusBarColor = (label: string) => {
                         <CardTitle class="text-lg font-bold text-gray-900">Recent Job Orders</CardTitle>
                         <CardDescription>Latest client vehicle tasks generated.</CardDescription>
                     </div>
-                    <Link :href="dashboard()" class="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors">
+                    <Link :href="displayJobOrders()" class="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors">
                         <ArrowUpRight class="w-5 h-5" />
                     </Link>
                 </CardHeader>
@@ -277,4 +300,59 @@ const getStatusBarColor = (label: string) => {
             </Card>
         </div>
     </div>
+
+    <!-- Modal for Low Stock Alert Details -->
+    <Dialog v-model:open="isLowStockPreviewOpen" :closeable="true">
+        <DialogContent class="sm:max-w-lg">
+            <DialogHeader>
+                <DialogTitle>Low Stock Alert Details</DialogTitle>
+                <DialogDescription>Review inventory items that are running low on stock.</DialogDescription>
+            </DialogHeader>
+            <div class="mt-4">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-500 uppercase bg-gray-50/50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 font-semibold">Part Name</th>
+                            <!-- <th scope="col" class="px-6 py-3 font-semibold">Category</th> -->
+                            <th scope="col" class="px-6 py-3 font-semibold text-right">Current Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50">
+                        <tr v-for="item in stats?.lowStockItems || []" :key="item.id" class="hover:bg-gray-50/50 transition-colors">
+                            <td class="flex px-6 py-4 font-medium text-gray-900">
+                                
+                                <img 
+                                    v-if="item.image" 
+                                    :src="item.image" 
+                                    alt="Part Image Thumbnail" 
+                                    class="object-cover w-16 h-16 border rounded transition-transform hover:scale-110 cursor-pointer flex-shrink-0" 
+                                />
+                                <div v-else class="w-16 h-16 bg-gray-100 border rounded flex items-center justify-center text-gray-400 flex-shrink-0">
+                                    <Wrench class="w-6 h-6" />
+                                </div>
+
+                                <div class="ml-4 flex flex-col justify-center">
+                                    <p class="text-sm font-bold text-gray-900 leading-tight">{{ item.name }}</p>
+                                    <div class="flex items-center gap-2 mt-1">
+                                        <span class="text-xs text-gray-500">{{ item.category }}</span>
+                                        <span class="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200">
+                                            {{ item.type }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-right font-bold text-red-600 text-lg">
+                                {{ item.stock_quantity }}
+                            </td>
+                        </tr>
+                        <tr v-if="!stats?.lowStockItems || stats.lowStockItems.length === 0">
+                            <td colspan="2" class="px-6 py-12 text-center text-gray-500">
+                                No low stock items at the moment.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </DialogContent>
+    </Dialog>
 </template>

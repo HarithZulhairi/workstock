@@ -12,7 +12,7 @@ import type { NavItem } from '@/types';
 
 const sidebarNavItems: NavItem[] = [
     {
-        title: 'Profile',
+        title: 'Admin Profile',
         href: editProfile(),
     },
 ];
@@ -21,10 +21,11 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
 </script>
 
 <template>
-    <div class="px-4 py-6">
+    <div class="px-10 py-6">
         <Heading
             title="Settings"
             description="Manage your profile and account settings"
+            imageSrc="/images/settings.png"
         />
 
         <div class="flex flex-col lg:flex-row lg:space-x-12">
