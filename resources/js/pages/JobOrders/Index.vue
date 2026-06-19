@@ -3,7 +3,7 @@ import { ref, watch, computed } from 'vue';
 import { toast } from 'vue-sonner';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import debounce from 'lodash/debounce'; 
-import { ClipboardSignature, Pencil, Trash, Search, FilterX, Plus, Eye, User as UserIcon, Phone, Wrench, DollarSign, CarFront, CircleAlert, ArchiveRestore } from 'lucide-vue-next';
+import { ClipboardSignature, Pencil, Trash, Search, FilterX, Plus, Eye, User as UserIcon, Phone, Wrench, DollarSign, CarFront, CircleAlert, ArchiveRestore, MessageSquareWarning, CalendarX2 } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge'; 
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
@@ -218,6 +218,15 @@ const formatDate = (dateString: string) => {
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
+    });
+};
+
+const formatDateIssues = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-MY', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric'
     });
 };
 
@@ -722,11 +731,38 @@ defineOptions({
 
                 <!-- Reported Issue Section -->
                 <div class="bg-amber-50 rounded-lg p-4 border border-amber-200">
-                    <h3 class="text-base font-bold text-gray-900 mb-2 flex items-center gap-2">
+                    <h3 class="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
                         <Wrench class="w-4 h-4 text-amber-600" />
                         Reported Issue
                     </h3>
-                    <p class="text-sm text-gray-700 leading-relaxed">{{ selectedOrder.reported_issue }}</p>
+                    <!-- <p class="text-sm text-gray-700 leading-relaxed">{{ selectedOrder.reported_issue }}</p> -->
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2 bg-white p-3 rounded-lg border">
+                            <div class="p-1.5 bg-red-100 rounded">
+                                <MessageSquareWarning class="w-4 h-4 text-red-600" />
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Issues Description</p>
+                                <p class="text-sm font-semibold text-gray-900">{{ selectedOrder.reported_issue || 'N/A' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 bg-white p-3 rounded-lg border">
+                            <div class="p-1.5 bg-orange-100 rounded">
+                                <CalendarX2 class="w-4 h-4 text-orange-600" />
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Issues Date</p>
+                                <p class="text-sm font-semibold text-gray-900">{{ formatDateIssues(selectedOrder.issue_start_date) || 'N/A' }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+
+                    <!-- <div>
+                        <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Issues Description</p>
+                        <p class="text-sm font-semibold text-gray-900">{{ selectedOrder.reported_issue || 'N/A' }}</p>
+                    </div> -->
                 </div>
 
                 <!-- Parts Used Section -->
@@ -771,7 +807,7 @@ defineOptions({
                                     {{ part.automotive_part?.name || 'N/A' }}
                                 </p>
                                 <p class="text-xs text-gray-600">
-                                    {{ part.variation?.name || 'Base / Default' }}
+                                    {{ part.variation?.name ?? part.automotive_part?.base_var_name ?? 'Base /Default' }}
                                 </p>
                                 <div class="flex items-center gap-3 mt-1">
                                     <span class="text-xs text-gray-500">Qty: <span class="font-semibold text-gray-900">{{ part.quantity_used }}</span></span>

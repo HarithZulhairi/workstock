@@ -43,7 +43,8 @@ import { displayJobOrders, storeJobOrder } from '@/routes';
 const props = defineProps<{
     parts: Array<{ 
         automotive_parts_id: number; 
-        name: string; 
+        name: string;
+        base_var_name?: string; 
         price: number; 
         stock_quantity: number; 
         part_serial_number: string;
@@ -65,6 +66,7 @@ const form = useForm({
     vehicle_plate: '',
     vehicle_brand: '',
     vehicle_model: '',
+    issue_start_date: '',
     vehicle_picture: null as File | null,
     reported_issue: '',
     status: 'Pending',
@@ -469,14 +471,21 @@ defineOptions({
                     <FieldDescription>Describe the problems reported by the customer or diagnosis.</FieldDescription>
                     <FieldGroup>
                         <Field>
+                            <FieldLabel for="reported_issue">Issues Description <span class="text-red-500">*</span></FieldLabel>
                             <Textarea
                                 id="reported_issue"
                                 v-model="form.reported_issue"
                                 placeholder="e.g. Brakes making a squealing noise, oil change required..."
-                                class="resize-y min-h-[100px]"
+                                class="min-h-[100px]"
                                 required
                             />
                             <InputError :message="form.errors.reported_issue" class="mt-2" />
+                        </Field>
+
+                        <Field>
+                            <FieldLabel for="issue_start_date">Issue Start Date <span class="text-red-500">*</span></FieldLabel>
+                            <Input id="issue_start_date" v-model="form.issue_start_date" type="date" required />
+                            <InputError :message="form.errors.issue_start_date" class="mt-2" />
                         </Field>
                     </FieldGroup>
                 </FieldSet>
@@ -528,6 +537,9 @@ defineOptions({
                                         <span v-if="row.variation_id" class="text-blue-600">
                                             • {{ props.parts.find(p => p.automotive_parts_id.toString() === row.automotive_parts_id)?.variations?.find(v => v.variation_id.toString() === row.variation_id)?.name }}
                                         </span>
+                                        <span v-else class="text-blue-600">
+                                            • {{ props.parts.find(p => p.automotive_parts_id.toString() == row.automotive_parts_id)?.base_var_name || 'Base / Default variation' }}
+                                        </span>
                                     </p>
                                 </div>
                             </div>
@@ -551,7 +563,7 @@ defineOptions({
                                     </Select>
                                 </div>
                                 <div class="md:col-span-5" v-if="row.automotive_parts_id && props.parts.find(p => p.automotive_parts_id.toString() == row.automotive_parts_id)?.variations?.length > 0">
-                                    <FieldLabel>Variation (Optional)</FieldLabel>
+                                    <FieldLabel>Variation</FieldLabel>
                                     <Select v-model="row.variation_id" @update:model-value="() => onVariationSelect(index)">
                                         <SelectTrigger class="bg-white w-full">
                                             <SelectValue placeholder="Base / Select variation..." />
@@ -559,7 +571,7 @@ defineOptions({
                                         <SelectContent>
                                             <!-- Hide Base Part option if another row is already using the Base Part -->
                                             <SelectItem :value="null" :disabled="isBasePartSelected(row.automotive_parts_id, index)">
-                                                Base / Default variation (Stock: {{ getBaseStock(row.automotive_parts_id) }})
+                                                {{ props.parts.find(p => p.automotive_parts_id.toString() == row.automotive_parts_id)?.base_var_name || 'Base / Default variation' }} (Stock: {{ getBaseStock(row.automotive_parts_id) }})
                                             </SelectItem>
                                             
                                             <!-- Use the new function with the index passed in -->

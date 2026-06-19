@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'vehicle_plate',
     'vehicle_brand',
     'vehicle_model',
+    'issue_start_date',
     'vehicle_picture',
     'reported_issue', 
     'status', 

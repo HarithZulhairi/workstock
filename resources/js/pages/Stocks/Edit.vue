@@ -49,6 +49,7 @@ const props = defineProps<{
     part: {
         automotive_parts_id: number;
         name: string;
+        base_var_name: string;
         part_serial_number: string;
         category_id: number;
         price: number;
@@ -104,6 +105,7 @@ const initialVariations = props.part.variations ? props.part.variations.map((v: 
 const form = useForm({
     _method: 'PUT',
     name: props.part.name,
+    base_var_name: props.part.base_var_name,
     part_serial_number: props.part.part_serial_number,
     category_id: props.part.category_id.toString(),
     price: props.part.price, 
@@ -329,7 +331,12 @@ defineOptions({
                   Set the default selling price. (Used if there are no variations).
                 </FieldDescription>
                 <FieldGroup>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <Field>
+                        <FieldLabel for="base_var_name">Base Variation Name <span class="text-red-500">*</span></FieldLabel>
+                        <Input id="base_var_name" v-model="form.base_var_name" placeholder="e.g. Standard / Gray" required />
+                        <InputError :message="form.errors.base_var_name" class="mt-2" />
+                      </Field>
                       <Field>
                         <FieldLabel for="price">Base Price (RM) <span class="text-red-500">*</span></FieldLabel>
                         <Input id="price" v-model="form.price" type="number" step="0.01" min="0" placeholder="0.00" required />

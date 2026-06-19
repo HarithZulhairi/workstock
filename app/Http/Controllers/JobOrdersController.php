@@ -61,14 +61,14 @@ class JobOrdersController extends Controller
     {
         // Get parts that are in stock (including their variations)
         $parts = AutomotiveParts::with(['variations' => function($query) {
-                        $query->where('stock_quantity', '>', 0);
+                        $query->where('stock_quantity', '>=', 0);
                     }])
-                    ->select('automotive_parts_id', 'name', 'price', 'stock_quantity', 'part_serial_number', 'part_images')
+                    ->select('automotive_parts_id', 'name', 'base_var_name',  'price', 'stock_quantity', 'part_serial_number', 'part_images')
                     ->where(function($query) {
                         // Include parts that either have base stock OR have variations with stock
-                        $query->where('stock_quantity', '>', 0)
+                        $query->where('stock_quantity', '>=', 0)
                               ->orWhereHas('variations', function($q) {
-                                  $q->where('stock_quantity', '>', 0);
+                                  $q->where('stock_quantity', '>=', 0);
                               });
                     })
                     ->where('is_visible_to_public', 1) 
@@ -87,6 +87,7 @@ class JobOrdersController extends Controller
             'vehicle_plate' => 'required|string|max:20',
             'vehicle_brand' => 'required|string|max:100',
             'vehicle_model' => 'required|string|max:100',
+            'issue_start_date' => 'required|date',
             'vehicle_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5060',
             'reported_issue' => 'required|string',
             'status' => 'required|string',
@@ -112,6 +113,7 @@ class JobOrdersController extends Controller
             'vehicle_plate' => strtoupper($validated['vehicle_plate']),
             'vehicle_brand' => strtoupper($validated['vehicle_brand']),
             'vehicle_model' => strtoupper($validated['vehicle_model']),
+            'issue_start_date' => $validated['issue_start_date'],
             'vehicle_picture' => $vehiclePicturePath,
             'reported_issue' => $validated['reported_issue'],
             'status' => $validated['status'],

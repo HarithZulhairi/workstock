@@ -9,7 +9,8 @@ import {
     ArrowUpRight, 
     Download, 
     Wrench,
-    Clock
+    Clock,
+    Plus
 } from 'lucide-vue-next';
 
 // Import Shadcn Card Components
@@ -55,6 +56,9 @@ defineOptions({
 
 const isLowStockPreviewOpen = ref(false);
 
+const isPreviewOpen = ref(false);
+const previewImageUrl = ref('');
+
 // Helper for status colors
 const getStatusColor = (status: string) => {
     switch(status) {
@@ -72,6 +76,11 @@ const getStatusBarColor = (label: string) => {
 
 const openLowStockPreview = () => {
     isLowStockPreviewOpen.value = true;
+};
+
+const openPreview = (url: string) => {
+    previewImageUrl.value = url;
+    isPreviewOpen.value = true;
 };
 
 </script>
@@ -310,20 +319,19 @@ const openLowStockPreview = () => {
             </DialogHeader>
             <div class="mt-4">
                 <table class="w-full text-sm text-left">
-                    <thead class="text-xs text-gray-500 uppercase bg-gray-50/50">
+                    <thead class="text-xs text-gray-500 uppercase bg-gray-50">
                         <tr>
-                            <th scope="col" class="px-6 py-3 font-semibold">Part Name</th>
-                            <!-- <th scope="col" class="px-6 py-3 font-semibold">Category</th> -->
-                            <th scope="col" class="px-6 py-3 font-semibold text-right">Current Stock</th>
+                            <th scope="col" class="px-3 py-3 font-semibold">Part Name</th>
+                            <th scope="col" class="px-3 py-3 font-semibold text-right">Current Stock</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-50">
+                    <tbody class="divide-y divide-gray-100">
                         <tr v-for="item in stats?.lowStockItems || []" :key="item.id" class="hover:bg-gray-50/50 transition-colors">
-                            <td class="flex px-6 py-4 font-medium text-gray-900">
-                                
+                            <td class="flex px-3 py-4 font-medium text-gray-900">
                                 <img 
                                     v-if="item.image" 
-                                    :src="item.image" 
+                                    :src="item.image"
+                                    @click="openPreview(`${item.image}`)" 
                                     alt="Part Image Thumbnail" 
                                     class="object-cover w-16 h-16 border rounded transition-transform hover:scale-110 cursor-pointer flex-shrink-0" 
                                 />
@@ -332,7 +340,7 @@ const openLowStockPreview = () => {
                                 </div>
 
                                 <div class="ml-4 flex flex-col justify-center">
-                                    <p class="text-sm font-bold text-gray-900 leading-tight">{{ item.name }}</p>
+                                    <p class="text-sm font-bold text-gray-900 leading-tight">{{ item.name }} ({{ item.var_name }})</p>
                                     <div class="flex items-center gap-2 mt-1">
                                         <span class="text-xs text-gray-500">{{ item.category }}</span>
                                         <span class="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200">
@@ -352,6 +360,23 @@ const openLowStockPreview = () => {
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </DialogContent>
+    </Dialog>
+
+    <!-- Image Preview Modal -->
+    <Dialog v-model:open="isPreviewOpen">
+        <DialogContent :show-close-button="false"
+            class="max-w-4xl p-0 overflow-hidden border-none bg-transparent shadow-none flex items-center justify-center sm:max-w-[90vw]">
+            <div class="relative w-full h-full flex items-center justify-center p-4">
+                <img :src="previewImageUrl"
+                    class="max-h-[90vh] w-auto rounded-lg shadow-2xl object-contain bg-white/10 backdrop-blur-sm" />
+
+                <!-- Highly Visible Close Button -->
+                <button @click="isPreviewOpen = false"
+                    class="absolute top-8 right-8 z-[60] flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-2xl ring-4 ring-black/10 transition-all hover:scale-110 active:scale-95 cursor-pointer">
+                    <Plus class="h-6 w-6 rotate-45 text-black" />
+                </button>
             </div>
         </DialogContent>
     </Dialog>

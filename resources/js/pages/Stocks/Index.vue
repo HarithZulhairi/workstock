@@ -3,9 +3,16 @@ import { ref, watch, computed } from 'vue';
 import { toast } from 'vue-sonner';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import debounce from 'lodash/debounce'; 
-import { Warehouse, Pencil, Trash, PackageOpen, Eye, EyeOff, Search, FilterX, Plus, CircleAlert } from 'lucide-vue-next';
+import { Warehouse, Pencil, Trash, PackageOpen, Eye, EyeOff, Search, FilterX, Plus, CircleAlert, TriangleAlert, ArrowUp, ArrowDown, ArrowUpDown, HelpCircle } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge'; 
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card'
 
 import {
   Dialog,
@@ -26,9 +33,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'; // <-- Import Select components
-
-import { Toaster } from '@/components/ui/sonner';
+} from '@/components/ui/select'; 
 
 import {
   Table,
@@ -63,11 +68,14 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+
+
 
 const props = defineProps({
     parts: { type: Object, required: true },
@@ -111,7 +119,12 @@ const filterForm = ref({
     max_price: props.filters.max_price || '',
     min_stock: props.filters.min_stock || '',
     max_stock: props.filters.max_stock || '',
+    low_stock: props.filters.low_stock === 'true' || props.filters.low_stock === true,
+    no_stock: props.filters.no_stock === 'true' || props.filters.no_stock === true,
     visibility: props.filters.visibility || 'all',
+    
+    sort_by: props.filters.sort_by || '',
+    sort_direction: props.filters.sort_direction || '',
 });
 
 // Watch for any changes in the filterForm, then ping the server
@@ -123,6 +136,23 @@ watch(filterForm, debounce((newFilters) => {
     });
 }, 300), { deep: true }); // 300ms delay, deep watch for nested object changes
 
+// Function to handle clicking a table header
+const toggleSort = (column: string) => {
+    if (filterForm.value.sort_by === column) {
+        // Toggle direction: asc -> desc -> reset
+        if (filterForm.value.sort_direction === 'asc') {
+            filterForm.value.sort_direction = 'desc';
+        } else {
+            filterForm.value.sort_by = '';
+            filterForm.value.sort_direction = '';
+        }
+    } else {
+        // Set new sort column
+        filterForm.value.sort_by = column;
+        filterForm.value.sort_direction = 'asc';
+    }
+};
+
 const clearFilters = () => {
     filterForm.value = {
         search: '',
@@ -131,7 +161,11 @@ const clearFilters = () => {
         max_price: '',
         min_stock: '',
         max_stock: '',
+        low_stock: false,
+        no_stock: false,
         visibility: 'all',
+        sort_by: '',
+        sort_direction: '',
     };
 };
 
@@ -140,6 +174,51 @@ const handlePageChange = (pageNumber: number) => {
         preserveState: true,
         preserveScroll: true,
     });
+};
+
+// Calculate the total combined stock of base + variations
+const getTotalStock = (part: any) => {
+    let total = Number(part.stock_quantity) || 0;
+    if (part.variations && part.variations.length > 0) {
+        total += part.variations.reduce((sum: number, v: any) => sum + (Number(v.stock_quantity)), 0);
+    }
+    return total;
+};
+
+// Determine the worst-case status for the color indicator FOR INDEX
+const getStockLevelStatus = (part: any) => {
+
+    // 1. Check if ANY item (base or variation) is completely out of stock
+    const hasOutOfStock = part.stock_quantity === 0 || 
+                         (part.variations && part.variations.some((v: any) => v.stock_quantity === 0));
+    
+    if (hasOutOfStock) return 'danger';
+
+    // 2. Check if ANY item (base or variation) is running low (1 to 5 units)
+    const hasLowStock = part.stock_quantity <= 5 || 
+                       (part.variations && part.variations.some((v: any) => v.stock_quantity <= 5));
+    
+    if (hasLowStock) return 'warning';
+
+    // 3. Everything is healthy
+    return 'healthy';
+};
+
+// Determine the projected stock status based on current stock + un-saved input FOR ADJUST STOCK DIALOG
+const getProjectedStockLevelStatus = (part: any) => {
+
+    if (part.temp_base_add) {
+        const projectedBaseStock = Number(part.stock_quantity) + (Number(part.temp_base_add) || 0);
+        if (projectedBaseStock <= 0) return 'danger';
+        if (projectedBaseStock <= 5) return 'warning';
+        return 'healthy';
+    }
+
+    const projectedVarStock = Number(part.stock_quantity) + (Number(part.temp_add_quantity) || 0);
+    if (projectedVarStock <= 0) return 'danger';
+    if (projectedVarStock <= 5) return 'warning';
+    return 'healthy';
+
 };
 
 
@@ -169,6 +248,9 @@ const openPreview = (url: string) => {
     previewImageUrl.value = url;
     isPreviewOpen.value = true;
 };
+
+console.log(filterForm.value.low_stock);
+console.log(filterForm.value.no_stock);
 
 
 defineOptions({ 
@@ -242,14 +324,14 @@ defineOptions({
                     <div class="flex gap-3">
                         <div class="relative flex-1">
                             <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <Input v-model="filterForm.search" placeholder="Search by part name..." class="pl-9 bg-white" />
+                            <Input v-model="filterForm.search" placeholder="Search by part name or serial number..." class="pl-9 bg-white" />
                         </div>
                         <Button variant="outline" @click="clearFilters" class="text-gray-500 gap-2">
                             <FilterX class="w-4 h-4" /> Clear Filters
                         </Button>
                     </div>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-3">
                         <Select v-model="filterForm.category_id">
                             <SelectTrigger class="bg-white"><SelectValue placeholder="Category" /></SelectTrigger>
                             <SelectContent>
@@ -272,21 +354,69 @@ defineOptions({
                         <Input v-model="filterForm.min_price" type="number" placeholder="Min Price (RM)" class="bg-white" />
                         <Input v-model="filterForm.max_price" type="number" placeholder="Max Price (RM)" class="bg-white" />
 
-                        <Input v-model="filterForm.min_stock" type="number" placeholder="Min Stock" class="bg-white" />
-                        <Input v-model="filterForm.max_stock" type="number" placeholder="Max Stock" class="bg-white" />
+                        <div class="flex items-center justify-between h-10 px-3 bg-white border border-gray-200 rounded-md shadow-sm transition-colors hover:border-gray-300">
+                            <Label for="filter-low-stock" class="text-sm font-normal text-gray-500 cursor-pointer select-none">
+                                Low Stock
+                                <HoverCard :open-delay="200">
+                                    <HoverCardTrigger as-child>
+                                        <button @click.stop class="outline-none cursor-help mt-0.5">
+                                            <HelpCircle class="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                                        </button>
+                                    </HoverCardTrigger>
+                                    <HoverCardContent side="top" class="w-54 text-sm font-normal normal-case text-center bg-white">
+                                        <p class=" text-gray-900">Stocks that is under 5 units</p>
+                                    </HoverCardContent>
+                                </HoverCard>
+                            </Label>
+                            <Switch id="filter-low-stock" v-model="filterForm.low_stock" />
+                        </div>
+
+                        <div class="flex items-center justify-between h-10 px-3 bg-white border border-gray-200 rounded-md shadow-sm transition-colors hover:border-gray-300">
+                            <Label for="filter-no-stock" class="text-sm font-normal text-gray-500 cursor-pointer select-none">
+                                Out of Stock
+                                <HoverCard :open-delay="200">
+                                    <HoverCardTrigger as-child>
+                                        <button @click.stop class="outline-none cursor-help mt-0.5">
+                                            <HelpCircle class="h-3.5 w-3.5 text-muted-foreground hover:text-primary transition-colors" />
+                                        </button>
+                                    </HoverCardTrigger>
+                                    <HoverCardContent side="top" class="w-48 text-sm font-normal normal-case text-center bg-white">
+                                        <p class=" text-gray-900">Stocks that have 0 unit</p>
+                                    </HoverCardContent>
+                                </HoverCard>
+                            </Label>
+                            <Switch id="filter-no-stock" v-model="filterForm.no_stock" />
+                        </div>
                     </div>
                 </div>
                 <Table>
                   <TableHeader class="bg-gray-50/80 border-b border-gray-100">
                     <TableRow class="hover:bg-transparent">
-                      <TableHead class="font-semibold text-gray-700 w-[30%] pl-6">Part Details</TableHead>
-                      <TableHead class="font-semibold text-gray-700">Category</TableHead>
-                      <TableHead class="font-semibold text-gray-700">Price (RM)</TableHead>
-                      <TableHead class="font-semibold text-gray-700">Stock Status</TableHead>
-                      <TableHead class="font-semibold text-gray-700">Visibility</TableHead>
-                      <TableHead class="font-semibold text-gray-700 text-right pr-6">Actions</TableHead>
+                        <TableHead class="font-semibold text-gray-700 w-[30%] pl-6">Part Details</TableHead>
+                        <TableHead class="font-semibold text-gray-700">Category</TableHead>
+                        
+                        <TableHead class="font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 select-none transition-colors group" @click="toggleSort('price')">
+                            <div class="flex items-center gap-1.5">
+                                Price (RM)
+                                <ArrowUp v-if="filterForm.sort_by === 'price' && filterForm.sort_direction === 'asc'" class="w-3.5 h-3.5 text-gray-900" />
+                                <ArrowDown v-else-if="filterForm.sort_by === 'price' && filterForm.sort_direction === 'desc'" class="w-3.5 h-3.5 text-gray-900" />
+                                <ArrowUpDown v-else class="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600" />
+                            </div>
+                        </TableHead>
+
+                        <TableHead class="font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 select-none transition-colors group" @click="toggleSort('stock')">
+                            <div class="flex items-center gap-1.5">
+                                Stock Status
+                                <ArrowUp v-if="filterForm.sort_by === 'stock' && filterForm.sort_direction === 'asc'" class="w-3.5 h-3.5 text-gray-900" />
+                                <ArrowDown v-else-if="filterForm.sort_by === 'stock' && filterForm.sort_direction === 'desc'" class="w-3.5 h-3.5 text-gray-900" />
+                                <ArrowUpDown v-else class="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600" />
+                            </div>
+                        </TableHead>
+                        
+                        <TableHead class="font-semibold text-gray-700">Visibility</TableHead>
+                        <TableHead class="font-semibold text-gray-700 text-right pr-6">Actions</TableHead>
                     </TableRow>
-                  </TableHeader>
+                    </TableHeader>
                   <TableBody>
                     
                     <TableRow 
@@ -315,6 +445,49 @@ defineOptions({
                                     <span v-if="part.brand" class="text-xs font-medium bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded uppercase tracking-wider border border-gray-200">
                                         {{ part.brand }}
                                     </span>
+                                    <HoverCard :open-delay="200">
+                                        <HoverCardTrigger as-child>
+                                            <TriangleAlert 
+                                                v-if="part.stock_quantity <= 5 || (part.variations && part.variations.some(v => v.stock_quantity <= 5))" 
+                                                class="w-6 h-6 hover:opacity-70 transition-colors cursor-help"
+                                                :class="{
+                                                    'text-amber-500': getStockLevelStatus(part) === 'warning',
+                                                    'text-red-500': getStockLevelStatus(part) === 'danger'
+                                                }" 
+                                            />
+                                        </HoverCardTrigger>
+                                        <HoverCardContent side="top" class="w-64 text-sm font-normal normal-case bg-white">
+                                            <!-- <div class="flex justify-between space-x-4">
+                                                <div class="space-y-1">
+                                                    <h4 class="text-sm font-semibold">
+                                                        Some 
+                                                    </h4>
+                                                    <p class="text-sm">
+                                                        The Vue Framework – The Progressive Web Framework.
+                                                    </p>
+                                                    <div class="flex items-center pt-2">
+                                                        <CalendarDaysIcon class="mr-2 h-4 w-4 opacity-70" />
+                                                        <span class="text-xs text-muted-foreground">
+                                                            Joined December 2021
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div> -->
+
+                                            <div v-if="getStockLevelStatus(part) === 'warning'" class="space-y-1 text-left">
+                                                <p class="font-semibold text-gray-900">Stocks under 5 units</p>
+                                                <p class="text-xs text-muted-foreground leading-relaxed">
+                                                    This part has low stock levels. Adjust Availability to add more stock soon.
+                                                </p>
+                                            </div>
+                                            <div v-else-if="getStockLevelStatus(part) === 'danger'" class="space-y-1 text-left">
+                                                <p class="font-semibold text-gray-900">Out of Stocks</p>
+                                                <p class="text-xs text-muted-foreground leading-relaxed">
+                                                    This part has currently out of stock. Adjust Availability to add more stock.
+                                                </p>
+                                            </div>
+                                        </HoverCardContent>
+                                    </HoverCard>
                                 </span>
                                 <span class="text-xs font-medium text-gray-500 mt-0.5 tracking-wide uppercase">{{ part.part_serial_number }}</span>
                             </div>
@@ -330,19 +503,37 @@ defineOptions({
                       </TableCell>
 
                       <TableCell>
-                        <div class="flex items-center gap-2">
-                            <div 
-                                class="w-2 h-2 rounded-full"
-                                :class="part.stock_quantity > 5 ? 'bg-emerald-500' : (part.stock_quantity > 0 ? 'bg-amber-500' : 'bg-red-500')"
-                            ></div>
-                            <span 
-                                class="font-medium"
-                                :class="part.stock_quantity > 5 ? 'text-emerald-700' : (part.stock_quantity > 0 ? 'text-amber-700' : 'text-red-700')"
-                            >
-                                {{ part.stock_quantity }} in stock
+                        <div class="flex flex-col gap-1">
+                            <div class="flex items-center gap-2">
+                                <div 
+                                    class="w-2 h-2 rounded-full flex-shrink-0"
+                                    :class="{
+                                        'bg-emerald-500': getStockLevelStatus(part) === 'healthy',
+                                        'bg-amber-500': getStockLevelStatus(part) === 'warning',
+                                        'bg-red-500': getStockLevelStatus(part) === 'danger'
+                                    }"
+                                ></div>
+                                
+                                <span 
+                                    class="font-medium"
+                                    :class="{
+                                        'text-emerald-700': getStockLevelStatus(part) === 'healthy',
+                                        'text-amber-700': getStockLevelStatus(part) === 'warning',
+                                        'text-red-700': getStockLevelStatus(part) === 'danger'
+                                    }"
+                                >
+                                    {{ getTotalStock(part) }} total in stock
+                                </span>
+                            </div>
+
+                            <span v-if="part.variations && part.variations.length > 0" class="text-[10px] text-gray-500 ml-4 leading-tight">
+                               Variation: {{ part.variations.length }}
+                                <span v-if="getStockLevelStatus(part) !== 'healthy'" class="text-amber-600 font-medium block">
+                                    (Some variations low/empty)
+                                </span>
                             </span>
                         </div>
-                      </TableCell>
+                    </TableCell>
 
                       <TableCell>
                           <Badge 
@@ -383,8 +574,23 @@ defineOptions({
                                         <div class="grid gap-6 py-4">
                                             
                                             <div class="grid gap-2 bg-gray-50 p-4 rounded-lg border border-gray-100">
-                                                <NumberField id="base-stock-add" v-model="part.temp_base_add" :default-value="0" :min="-part.stock_quantity">
-                                                    <Label for="base-stock-add" class="font-semibold text-gray-900">{{ part.name }}</Label>
+                                                <NumberField 
+                                                    id="base-stock-add" 
+                                                    v-model="part.temp_base_add" 
+                                                    :default-value="0" 
+                                                    :min="-part.stock_quantity"
+                                                >
+                                                    <Label for="base-stock-add" class="font-semibold text-gray-900">
+                                                        {{ part.name }} ({{ part.base_var_name || 'Default' }})
+                                                        <TriangleAlert 
+                                                            v-if="(Number(part.temp_base_add) || 0) + Number(part.stock_quantity) <= 5" 
+                                                            class="w-6 h-6"
+                                                            :class="{
+                                                                'text-amber-500': getProjectedStockLevelStatus(part) === 'warning',
+                                                                'text-red-500': getProjectedStockLevelStatus(part) === 'danger'
+                                                            }" 
+                                                        />                           
+                                                    </Label>
                                                     <span class="text-xs text-gray-500 block mb-2">Current Base / Default variation stock: <b>{{ part.stock_quantity }}</b></span>
                                                     <NumberFieldContent>
                                                         <NumberFieldDecrement />
@@ -399,13 +605,28 @@ defineOptions({
                                                 
                                                 <div v-for="variation in part.variations" :key="variation.variation_id" class="flex items-center justify-between gap-4 py-2 border-b border-gray-50 last:border-0">
                                                     <div class="flex flex-col text-left">
-                                                        <span class="font-medium text-gray-700">{{ variation.name }}</span>
+                                                        <span class="flex font-medium gap-1 text-gray-700">
+                                                            {{ variation.name }}
+                                                            <TriangleAlert 
+                                                                v-if="(Number(variation.temp_add_quantity) || 0) + Number(variation.stock_quantity) <= 5" 
+                                                                class="w-6 h-6"
+                                                                :class="{
+                                                                    'text-amber-500': getProjectedStockLevelStatus(variation) === 'warning',
+                                                                    'text-red-500': getProjectedStockLevelStatus(variation) === 'danger'
+                                                                }" 
+                                                            />
+                                                        </span>
                                                         <span class="text-xs text-gray-500">Current: <b>{{ variation.stock_quantity }}</b></span>
                                                     </div>
                                                     <div class="flex items-center gap-2 w-32">
                                                         <span class="text-gray-400 font-bold">+/-</span>
                                                         
-                                                        <NumberField v-model="variation.temp_add_quantity" :default-value="0" :min="-variation.stock_quantity" class="w-full">
+                                                        <NumberField 
+                                                            v-model="variation.temp_add_quantity" 
+                                                            :default-value="0" 
+                                                            :min="-variation.stock_quantity" 
+                                                            class="w-full" 
+                                                        >
                                                             <NumberFieldContent>
                                                                 <NumberFieldDecrement />
                                                                 <NumberFieldInput class="text-center bg-white" />

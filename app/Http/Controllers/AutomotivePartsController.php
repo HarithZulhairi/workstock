@@ -13,10 +13,13 @@ class AutomotivePartsController extends Controller
 {
     public function index(Request $request)
     {
-        $query = AutomotiveParts::with(['category', 'variations'])->latest();
+        // Add withSum to calculate the total variation stock automatically
+        $query = AutomotiveParts::with(['category', 'variations'])
+                    ->withSum('variations', 'stock_quantity'); 
 
         if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
+            $query->where('name', 'like', '%' . $request->search . '%')
+                  ->orWhere('part_serial_number', 'like', '%' . $request->search . '%');
         }
 
         if ($request->filled('category_id') && $request->category_id !== 'all') {
@@ -30,25 +33,61 @@ class AutomotivePartsController extends Controller
             $query->where('price', '<=', $request->max_price);
         }
 
-        if ($request->filled('min_stock')) {
-            $query->where('stock_quantity', '>=', $request->min_stock);
-        }
-        if ($request->filled('max_stock')) {
-            $query->where('stock_quantity', '<=', $request->max_stock);
-        }
-
         if ($request->filled('visibility') && $request->visibility !== 'all') {
             $query->where('is_visible_to_public', $request->visibility === 'public' ? 1 : 0);
         }
 
-        $parts = $query->paginate(10)->withQueryString();
+        $isLowStock = $request->filled('low_stock') && $request->low_stock === 'true';
+        $isNoStock = $request->filled('no_stock') && $request->no_stock === 'true';
 
-        $categories = Categories::all();
+        if($isLowStock || $isNoStock){
+            $query->where(function ($q) use ($isLowStock, $isNoStock) {
+                
+                if($isLowStock && $isNoStock){
+                    $q->where('stock_quantity', '<=', 5)
+                        ->orWhereHas('variations', function ($queryVariation) {
+                            $queryVariation->where('stock_quantity', '<=', 5);
+                        });
+                }
+
+                else if($isLowStock){
+                    $q->whereBetween('stock_quantity', [1, 5])
+                    ->orWhereHas('variations', function ($queryVariation) {
+                        $queryVariation->whereBetween('stock_quantity', [1, 5]);
+                    });
+                }
+
+                else if($isNoStock){
+                    $q->where('stock_quantity', '<=', 0)
+                    ->orWhereHas('variations', function ($queryVariation) {
+                        $queryVariation->where('stock_quantity', '<=', 0);
+                    });
+                }
+            });
+        }
+
+        // --- NEW SORTING LOGIC ---
+        $sortBy = $request->input('sort_by');
+        $sortDir = $request->input('sort_direction', 'asc');
+
+        if ($sortBy === 'price') {
+            $query->orderBy('price', $sortDir);
+        } elseif ($sortBy === 'stock') {
+            // Sort by Base Stock + Total Variation Stock
+            $query->orderByRaw('(stock_quantity + COALESCE(variations_sum_stock_quantity, 0)) ' . $sortDir);
+        } else {
+            $query->latest(); // Default sort
+        }
+        // -------------------------
+
+        $parts = $query->paginate(10)->withQueryString();
+        $categories = Categories::all(); // Assuming you have imported the model
 
         return Inertia::render('Stocks/Index', [
             'parts' => $parts,
             'categories' => $categories,
-            'filters' => $request->only(['search', 'category_id', 'min_price', 'max_price', 'min_stock', 'max_stock', 'visibility'])
+            // Added low_stock, no_stock, sort_by, and sort_direction here!
+            'filters' => $request->only(['search', 'category_id', 'min_price', 'max_price', 'min_stock', 'max_stock', 'visibility', 'low_stock', 'no_stock', 'sort_by', 'sort_direction'])
         ]);
     }
 
@@ -114,6 +153,7 @@ class AutomotivePartsController extends Controller
         // 1. Validate both the main part AND the variations array
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'base_var_name' => ['required', 'string', 'max:255'],
             'part_serial_number' => ['required', 'string', 'max:255', 'unique:automotive_parts,part_serial_number'],
             'category_id' => ['required', 'exists:categories,category_id'], 
             'price' => ['required', 'numeric', 'min:0'],
@@ -221,7 +261,7 @@ class AutomotivePartsController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            // Ignore the current part's ID for the unique check
+            'base_var_name' => ['required', 'string', 'max:255'],
             'part_serial_number' => ['required', 'string', 'max:255', 'unique:automotive_parts,part_serial_number,' . $id . ',automotive_parts_id'],
             'category_id' => ['required', 'exists:categories,category_id'], 
             'price' => ['required', 'numeric', 'min:0'],

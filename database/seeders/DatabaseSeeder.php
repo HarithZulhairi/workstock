@@ -28,5 +28,16 @@ class DatabaseSeeder extends Seeder
                 'name' => $category,
             ]);
         }
+
+        // Create a default user for testing
+        User::create([
+            'name' => 'Admin User',
+            'email' => 'admin1@gmail.com',
+            'password' => bcrypt('password'),
+            'position' => 'Administrator',
+            'is_active' => true,
+            'phone_number' => '01234567890',
+            'address' => '123 Main Street, City, Country',
+        ]);
     }
 }

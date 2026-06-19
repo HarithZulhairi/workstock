@@ -61,6 +61,7 @@ const isVisibleToPublic = ref(true);
 
 const form = useForm({
     name: '',
+    base_var_name: '',
     part_serial_number: '',
     category_id: '',
     price: 0.00, // Base price
@@ -295,12 +296,12 @@ defineOptions({
                   <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <Field>
                         <FieldLabel for="warranty">Warranty</FieldLabel>
-                        <Input id="warranty" v-model="form.warranty" placeholder="e.g. 6 Months" />
+                        <Input id="warranty" v-model="form.warranty" placeholder="e.g. 6 Months, 3 Days" />
                         <InputError :message="form.errors.warranty" class="mt-2" />
                       </Field>
                       <Field>
                         <FieldLabel for="dimensions">Dimensions</FieldLabel>
-                        <Input id="dimensions" v-model="form.dimensions" placeholder="e.g. 10x5x2 cm" />
+                        <Input id="dimensions" v-model="form.dimensions" placeholder="e.g. 10x5x2 cm, 500 mL" />
                         <InputError :message="form.errors.dimensions" class="mt-2" />
                       </Field>
                       <Field>
@@ -333,7 +334,12 @@ defineOptions({
                   Set the default selling price and stock. (Used if there are no variations).
                 </FieldDescription>
                 <FieldGroup>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <Field>
+                        <FieldLabel for="base_var_name">Base Variation Name <span class="text-red-500">*</span></FieldLabel>
+                        <Input id="base_var_name" v-model="form.base_var_name" placeholder="e.g. Standard , Gray" required />
+                        <InputError :message="form.errors.base_var_name" class="mt-2" />
+                      </Field>
                       <Field>
                         <FieldLabel for="price">Base Price (RM) <span class="text-red-500">*</span></FieldLabel>
                         <Input id="price" v-model="form.price" type="number" step="0.01" min="0" placeholder="0.00" required />

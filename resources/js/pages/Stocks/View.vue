@@ -137,6 +137,9 @@ defineOptions({
                                 <span v-if="selectedVariation" class="text-xl text-primary block mt-1">
                                     - {{ selectedVariation.name }}
                                 </span>
+                                <span v-else class="text-xl text-primary block mt-1">
+                                    - {{ part.base_var_name || 'Default' }}
+                                </span>
                             </h1>
                         </div>
 

@@ -30,6 +30,7 @@ class DashboardController extends Controller
             $formattedLowStockItems->push([
                 'id' => 'part_' . $part->automotive_parts_id,
                 'name' => $part->name,
+                'var_name' => $part->base_var_name ?? 'Default',
                 'type' => 'Base Part',
                 'category' => $part->category ? $part->category->name : 'Uncategorized',
                 'stock_quantity' => $part->stock_quantity,
@@ -42,8 +43,8 @@ class DashboardController extends Controller
             $parent = $variation->part;
             $formattedLowStockItems->push([
                 'id' => 'var_' . $variation->variation_id,
-                // Combine parent name and variation name (e.g., "Brake Pad - Ceramic")
-                'name' => ($parent ? $parent->name : 'Unknown Part') . ' (' . $variation->name . ')',
+                'name' => ($parent ? $parent->name : 'Unknown Part'),
+                'var_name' => $variation->name,
                 'type' => 'Variation',
                 'category' => ($parent && $parent->category) ? $parent->category->name : 'Uncategorized',
                 'stock_quantity' => $variation->stock_quantity,

@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'part_serial_number', 
-    'name', 
+    'name',
+    'base_var_name', 
     'part_picture', 
     'part_description', 
     'category_id', 
